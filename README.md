@@ -40,7 +40,7 @@ provided rather than using the library directly. Currently a wrapper
 for PyTorch is provided (PR's for other frameworks are welcome). See
 the [PyTorch wrapper README](/pytorch/README.md) for documentation on
 using the PyTorch wrapper. Note that it is not required to build or
-install the C++ library before building the PyTorch wrapper (it's
+install the C++ library before building the PyTorch wrapper (its
 setup scripts will do so for you).
 
 # Building and Installing
