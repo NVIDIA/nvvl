@@ -146,7 +146,7 @@ filesize and loading performance. To set the keyframe interval to `X`
 when using `ffmpeg`:
 
 - For `libx264` use `-g X -keyint_min X`
-- For `libx265` use `-x265-params "keyint=X:min-keyint=X`
+- For `libx265` use `-x265-params "keyint=X:min-keyint=X"`
 
 The pixel format of the video must also be yuv420p to be supported by
 the hardware decoder. This is done by passing `-pix_fmt yuv420p` to
