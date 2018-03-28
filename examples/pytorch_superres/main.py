@@ -57,7 +57,7 @@ parser.add_argument('--max_lr', type=float, default=0.00001,
 parser.add_argument('--weight_decay', type=float, default=0.0004,
                     help='ADAM weight decay')
 parser.add_argument('--flownet_path', type=str,
-                    default='networks/FlowNet2-SD_checkpoint.pth.tar',
+                    default='flownet2-pytorch/networks/FlowNet2-SD_checkpoint.pth.tar',
                     help='FlowNetSD weights path')
 parser.add_argument('--image_freq', type=int, default=100,
                     help='num iterations between image dumps to Tensorboard ')
