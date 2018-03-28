@@ -31,6 +31,8 @@ RUN apt-get install -y yasm wget && \
     apt-get remove -y yasm
 
 # install stub library since driver libs aren't available at image build time
+# this is a temporary requirement that will go away in future cuda versions
+# libnvcuvid.so was created using the make-stub.sh script
 COPY libnvcuvid.so /usr/local/cuda/lib64/stubs
 
 # install nvvl
