@@ -48,9 +48,17 @@ higher than loading from .mp4 using nvvl. However, due to asynchronous data load
 
 ## Requirements
 
-The system used to run this project must include a Kepler, Pascal, Maxwell or Volta NVIDIA GPU.
+The system used to run this project must include two or more Kepler, Pascal, Maxwell or Volta NVIDIA GPUs.
 
-All testing of this project was carried out on an NVIDIA DGX-1 using all 8 V100 GPUs and running CUDA 9.1, PyTorch 0.4.0a0+02b758f, cuDNN v7.0.5 in Ubuntu 16.04 Docker containers.
+Software requirements:
+
+* Cuda 9.0+
+* Pytorch 0.4+
+* ffmpeg=3.4.2
+* scikit-image
+* tensorflow
+* tensorboard
+* tensorboardX
 
 ## Installation
 
@@ -58,8 +66,8 @@ We recommend using Docker for building an environment with the appropriate depen
 
 A Dockerfile is provided at [./docker/Dockerfile](./docker/Dockerfile). The base
 container it inherets from is available by signing up for [NVIDIA GPU Cloud
-(NGC)](https://ngc.nvidia.com/). Alternatively you can build PyTorch top-of-tree from source
-following the instructions [here](https://github.com/pytorch/pytorch#from-source) and inheret from that container instead.  To
+(NGC)](https://ngc.nvidia.com/). Alternatively you can build a PyTorch container from top-of-tree source
+following the instructions [here](https://github.com/pytorch/pytorch#docker-image) and inheret from that container instead.  To
 build, run the following from the root directory of this repo:
 
     cd examples/pytorch_superres/docker
@@ -69,9 +77,17 @@ build, run the following from the root directory of this repo:
 
 We make use of the FlowNet2-SD PyTorch implementation available [here](https://github.com/NVIDIA/flownet2-pytorch).  It is included in this repo as a git submodule.
 
+In order to use the pre-trained FlowNet2-SD network run the following from the
+root directory of this repo:
+
+    git submodule init
+    git submodule update
+
 Training the VSRNet implemented here requires the use of pre-trained weights from the FlowNet2-SD network.  We provided a converted Caffe pre-trained model below.  Should you use these weights, please adhere to the [license agreement](https://drive.google.com/file/d/1TVv0BnNFh3rpHZvD-easMb9jYrPE2Eqd/view?usp=sharing):
 
 [FlowNet2-SD](https://drive.google.com/file/d/1QW03eyYG_vD-dT-Mx4wopYvtPu_msTKn/view?usp=sharing)[173MB]
+
+The default location that the training code will look for these weights is `examples/pytorch_superres/flownet2-pytorch/networks/FlowNet2-SD_checkpoint.pth.tar`. This location can be changed via the `--flownet_path` argument to `main.py`.
 
 ## Data
 
@@ -131,6 +147,8 @@ for your system.
 Visualization of training data, e.g. loss curves and timings, aswell as sample images is provided through [Tensorboard](https://www.tensorflow.org/programmers_guide/summaries_and_tensorboard) via the [tensorboardX](https://github.com/lanpa/tensorboard-pytorch) library.  Whilst training is running you can access Tensorboard at `<host_ip>:6006`.
 
 ## Results on Myanmar validation set
+
+All testing of this project was carried out on an NVIDIA DGX-1 using all 8 V100 GPUs and running CUDA 9.1, PyTorch 0.4.0a0+02b758f, cuDNN v7.0.5 in Ubuntu 16.04 Docker containers.
 
 Input image (128x240 - click to see actual size):
 
