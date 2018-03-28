@@ -107,12 +107,12 @@ following options using `cmake .. -DOPTION=Value`:
 - `CMAKE_INSTALL_PREFIX` - Install directory. Default is
   `/usr/local`.
 
-- `CMAKE_BUILD_TYPE` - `debug` or `release` build.
+- `CMAKE_BUILD_TYPE` - `Debug` or `Release` build.
 
 See the [CMake documentation](https://cmake.org/cmake/help/v3.8/) for
 more options.
 
-The examples in `doc/examples` can be built using the examples target:
+The examples in `doc/examples` can be built using the `examples` target:
 ```
 make examples
 ```
@@ -262,7 +262,7 @@ This will insert a wait event into the stream `stream`, causing any
 further kernels launched on `stream` to wait until the data is
 ready.
 
-The C interface follow a very similar pattern, see
+The C interface follows a very similar pattern, see
 [doc/examples/extract_frames_c.c](doc/examples/extract_frames_c.c)
 for an example.
 
