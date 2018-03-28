@@ -1,0 +1,7 @@
+**__pycache__
+*.pyc
+build
+nvvl/src/*_generated.*
+nvvl/lib
+*.egg-info
+dist

@@ -1,0 +1,10 @@
+*.o
+*.so
+.dir-locals.el
+.DS_Store
+doc/examples/extract_frames
+doc/examples/extract_frames_c
+bin
+output
+build*
+test*

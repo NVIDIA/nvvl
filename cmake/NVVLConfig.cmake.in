@@ -1,0 +1,13 @@
+get_filename_component(NVVL_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+include(CMakeFindDependencyMacro)
+
+find_package(PkgConfig)
+foreach(m avformat avcodec avfilter avutil)
+    string(TOUPPER ${m} M)
+    pkg_check_modules(${m} REQUIRED IMPORTED_TARGET lib${m})
+    list(APPEND FFmpeg_LIBS PkgConfig::${m})
+endforeach(m)
+
+if(NOT TARGET NVVL::NVVL)
+    include("${NVVL_CMAKE_DIR}/NVVLTargets.cmake")
+endif()
