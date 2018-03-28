@@ -27,15 +27,15 @@ reduced CPU load, host memory usage, disk usage and per iteration data loading
 time.
 
 | Data loader | Input resolution | Crop size\* | Numerical precision | PyTorch loader Workers (.png only) | Batch size | CPU load\*\* | Peak host memory (%) | Disk space for dataset(GB) | Per iteration data time (ms)\*\*\* |
-| ---- | ----- | ---- | ---- | --- | - | -- | ---- | ----- | --- |
-| NVVL | 540p  | None | fp32 | N/A | 7 | 10 | 4.0  | 0.592 | 1.3 |
-| .png | 540p  | None | fp32 | 10  | 7 | 17 | 4.7  | 23    | 3.9 |
-| NVVL | 540p  | None | fp16 | N/A | 7 | 10 | 4.0  | 0.592 | 0.3 |
-| .png | 540p  | None | fp16 | 10  | 7 | 19 | 4.7  | 23    | 4.5 |
-| NVVL | 720p  | 540p | fp32 | N/A | 4 | 10 | 4.0  | 0.961 | 0.4 |
-| .png | 720p  | 540p | fp32 | 10  | 4 | 18 | 4.7  | 38    | 3.8 |
-| NVVL | 720p  | 540p | fp16 | N/A | 4 | 10 | 4.0  | 0.961 | 0.5 |
-| .png | 720p  | 540p | fp16 | 10  | 4 | 20 | 4.8  | 38    | 3.8 |
+| ---- | ----- | ---- | ---- | --- | - | -- | ---- | ----- | ---- |
+| NVVL | 540p  | None | fp32 | N/A | 7 | 10 | 4.0  | 0.592 | 9.1  |
+| .png | 540p  | None | fp32 | 10  | 7 | 17 | 4.7  | 23    | 27.3 |
+| NVVL | 540p  | None | fp16 | N/A | 7 | 10 | 4.0  | 0.592 | 2.1  |
+| .png | 540p  | None | fp16 | 10  | 7 | 19 | 4.7  | 23    | 31.5 |
+| NVVL | 720p  | 540p | fp32 | N/A | 4 | 10 | 4.0  | 0.961 | 2.8  |
+| .png | 720p  | 540p | fp32 | 10  | 4 | 18 | 4.7  | 38    | 26.6 |
+| NVVL | 720p  | 540p | fp16 | N/A | 4 | 10 | 4.0  | 0.961 | 3.5  |
+| .png | 720p  | 540p | fp16 | 10  | 4 | 20 | 4.8  | 38    | 26.6 |
 
 \* Random cropping
 
