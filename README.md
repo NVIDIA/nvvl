@@ -157,7 +157,7 @@ before the output.
 For example:
 
 ```
-ffmpeg -i original.mp4 -map v:0 -c:v libx264 -crf 18 -pix_fmt 420p -g 5 -keyint_min 5 -profile:v high prepared.mp4
+ffmpeg -i original.mp4 -map v:0 -c:v libx264 -crf 18 -pix_fmt yuv420p -g 5 -keyint_min 5 -profile:v high prepared.mp4
 ```
 
 # Basic Usage
