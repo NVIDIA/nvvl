@@ -135,7 +135,7 @@ sequence of frames, it is necessary to start decoding at the keyframe
 before the sequence, and continue past the sequence to the next
 keyframe after it. This isn't a problem when streaming sequentially
 through a video; however, when decoding small sequences of frames
-randomly through the video, a large gap between key frames results in
+randomly throughout the video, a large gap between keyframes results in
 reading and decoding a large amount of frames that are never used.
 
 Thus, to get good performance when randomly reading short sequences
