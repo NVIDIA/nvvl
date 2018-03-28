@@ -46,7 +46,7 @@ setup scripts will do so for you).
 # Building and Installing
 
 NVVL depends on the following:
-- CUDA Toolkit
+- CUDA Toolkit version 9.0 or newer
 - FFmpeg's libavformat, libavcodec, libavfilter, and libavutil
 
 Additionally, building from source requires CMake version 3.8 or above

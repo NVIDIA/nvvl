@@ -9,9 +9,9 @@ video super-resolution network.
 # Building and installing
 The NVVL PyTorch wrapper requires:
 
-- a CUDA-enabled python `torch`
-package to already be installed, see [their
+- a python `torch` package with CUDA 9.0 or newer, see [their
 homepage](http://pytorch.org) for instructions.
+
 - FFmpeg's libavformat, libavcodec, libavfilter, and libavutil. These
   should be available from your Linux distribution's package manager
   (be sure to get the `-dev` packages).
