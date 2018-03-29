@@ -27,6 +27,21 @@ __device__ float clip(float x, float max) {
     return fmin(fmax(x, 0.0f), max);
 }
 
+template<typename T>
+__device__ T convert(const float x) {
+    return static_cast<T>(x);
+}
+
+template<>
+__device__ half convert<half>(const float x) {
+    return __float2half(x);
+}
+
+template<>
+__device__ uint8_t convert<uint8_t>(const float x) {
+    return static_cast<uint8_t>(roundf(x));
+}
+
 template<typename YUV_T, typename RGB_T>
 __device__ void yuv2rgb(const yuv<YUV_T>& yuv, RGB_T* rgb,
                         size_t stride, bool normalized) {
@@ -44,14 +59,14 @@ __device__ void yuv2rgb(const yuv<YUV_T>& yuv, RGB_T* rgb,
         g = clip(y*m[3] + u*m[4] + v*m[5], 1.0);
         b = clip(y*m[6] + u*m[7] + v*m[8], 1.0);
     } else {
-        r = clip(roundf(y*m[0] + u*m[1] + v*m[2]), 255.0);
-        g = clip(roundf(y*m[3] + u*m[4] + v*m[5]), 255.0);
-        b = clip(roundf(y*m[6] + u*m[7] + v*m[8]), 255.0);
+        r = clip(y*m[0] + u*m[1] + v*m[2], 255.0);
+        g = clip(y*m[3] + u*m[4] + v*m[5], 255.0);
+        b = clip(y*m[6] + u*m[7] + v*m[8], 255.0);
     }
 
-    rgb[0] = static_cast<RGB_T>(r);
-    rgb[stride] = static_cast<RGB_T>(g);
-    rgb[stride*2] = static_cast<RGB_T>(b);
+    rgb[0] = convert<RGB_T>(r);
+    rgb[stride] = convert<RGB_T>(g);
+    rgb[stride*2] = convert<RGB_T>(b);
 }
 
 template<typename T>
@@ -92,9 +107,9 @@ __global__ void process_frame_kernel(
 
         case ColorSpace_YCbCr:
             auto mult = dst.desc.normalized ? 1.0f : 255.0f;
-            out[0] = static_cast<T>(yuv.y * mult);
-            out[dst.desc.stride.c] = static_cast<T>(yuv.u * mult);
-            out[dst.desc.stride.c*2] = static_cast<T>(yuv.v * mult);
+            out[0] = convert<T>(yuv.y * mult);
+            out[dst.desc.stride.c] = convert<T>(yuv.u * mult);
+            out[dst.desc.stride.c*2] = convert<T>(yuv.v * mult);
             break;
     };
 }
