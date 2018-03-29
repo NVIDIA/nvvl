@@ -46,7 +46,9 @@ setup scripts will do so for you).
 # Building and Installing
 
 NVVL depends on the following:
-- CUDA Toolkit version 9.0 or newer
+- CUDA Toolkit. We have tested versions 8.0 and later but earlier
+  versions may work. NVVL will perform better with CUDA 9.0 or
+  later<sup id="a1">[1](#f1)</sup>.
 - FFmpeg's libavformat, libavcodec, libavfilter, and libavutil. These
   can be installed from source as in the [example
   Dockerfiles](/docker) or from the Ubuntu 16.04 packages
@@ -287,3 +289,10 @@ publications using the following BibTeX entry:
   howpublished = {\url{https://github.com/NVIDIA/nvvl}}
 }
 ```
+
+# Footnotes
+
+<b id="f1">[1]</b> Specifically, with nvidia kernel modules version
+384 and later, which come with CUDA 9.0+, CUDA kernels launched by
+NVVL will run asynchronously on a separate stream. With earlier kernel
+modules, all CUDA kernels are launched on the default stream. [↩](#a1)
