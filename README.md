@@ -47,7 +47,11 @@ setup scripts will do so for you).
 
 NVVL depends on the following:
 - CUDA Toolkit version 9.0 or newer
-- FFmpeg's libavformat, libavcodec, libavfilter, and libavutil
+- FFmpeg's libavformat, libavcodec, libavfilter, and libavutil. These
+  can be installed from source as in the [example
+  Dockerfiles](/docker) or from the Ubuntu 16.04 packages
+  `libavcodec-dev libavfilter-dev libavformat-dev
+  libavutil-dev`. Other distributions should have similar packages.
 
 Additionally, building from source requires CMake version 3.8 or above
 and some examples optionally make use of some libraries from OpenCV if
