@@ -39,13 +39,11 @@ COPY libnvcuvid.so /usr/local/cuda/lib64/stubs
 RUN pip install --upgrade cmake && \
     apt-get install -y pkg-config && \
     cd /tmp && \
-    wget --no-check-certificate https://gitlab-master.nvidia.com/ADLR/nvvl/repository/archive.tar.bz2 -O nvvl.tar.bz2 && \
-    mkdir -p nvvl/build && \
-    tar xf nvvl.tar.bz2 -C nvvl --strip-components 1 && \
-    rm nvvl.tar.bz2 && \
-    cd nvvl/build && \
-    cmake .. && make && make install && \
-    cd ../pytorch && \
+    wget https://github.com/NVIDIA/nvvl/archive/master.tar.gz -O nvvl.tar.gz && \
+    mkdir nvvl && \
+    tar xf nvvl.tar.gz -C nvvl --strip-components 1 && \
+    rm nvvl.tar.gz && \
+    cd nvvl/pytorch && \
     python3 setup.py install && \
     pip uninstall -y cmake && \
     apt-get remove -y pkg-config && \
