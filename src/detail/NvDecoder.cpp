@@ -43,7 +43,10 @@ NvDecoder::NvDecoder(int device_id,
         return;
     }
 
-    cucall(cuInit(0));
+    if (!cucall(cuInit(0))) {
+        throw std::runtime_error("Unable to initial cuda driver. Is the kernel module installed?");
+    }
+
     if (!cucall(cuDeviceGet(&device_, device_id_))) {
         std::cerr << "Problem getting device info for device "
                   << device_id_ << ", not initializing VideoDecoder\n";
