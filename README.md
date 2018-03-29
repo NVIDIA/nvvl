@@ -104,6 +104,9 @@ following options using `cmake .. -DOPTION=Value`:
   also use this for finer control of code generation than `CUDA_ARCH`,
   see the `nvcc` documentation. Default is `-cudart shared`.
 
+- `WITH_OPENCV` - Set this to 1 to build the examples with the
+  optional OpenCV functionality.
+
 - `CMAKE_INSTALL_PREFIX` - Install directory. Default is
   `/usr/local`.
 

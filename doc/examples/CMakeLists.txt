@@ -4,9 +4,9 @@ add_executable(extract_frames
     )
 target_link_libraries(extract_frames PUBLIC NVVL::NVVL)
 
-find_package(OpenCV CONFIG OPTIONAL_COMPONENTS core cudaarithm cudaimgproc imgcodecs)
-
-if(OPENCV_FOUND)
+if (WITH_OPENCV)
+    # If we are in here, they explicitly asked for it, so make it required
+    find_package(OpenCV CONFIG REQUIRED COMPONENTS core cudaarithm cudaimgproc imgcodecs)
     target_compile_definitions(extract_frames PRIVATE HAVE_OPENCV=1)
     target_link_libraries(extract_frames PUBLIC opencv_core PRIVATE ${OpenCV_LIBS})
 endif()
