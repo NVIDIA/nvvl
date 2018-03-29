@@ -5,7 +5,13 @@
 #include "PictureSequenceImpl.h"
 
 class AVPacket;
+#ifdef HAVE_AVSTREAM_CODECPAR
 class AVCodecParameters;
+using CodecParameters = AVCodecParameters;
+#else
+class AVCodecContext;
+using CodecParameters = AVCodecContext;
+#endif
 
 namespace NVVL {
 
@@ -49,7 +55,7 @@ class Decoder {
   public:
     Decoder();
     Decoder(int device_id, Logger& logger,
-            const AVCodecParameters* codecpar);
+            const CodecParameters* codecpar);
     Decoder(const Decoder&) = default;
     Decoder(Decoder&&) = default;
     Decoder& operator=(const Decoder&) = default;
@@ -78,7 +84,7 @@ class Decoder {
 
     const int device_id_;
     CUStream stream_;
-    const AVCodecParameters* codecpar_;
+    const CodecParameters* codecpar_;
 
     detail::Logger& log_;
 };

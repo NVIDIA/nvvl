@@ -7,6 +7,8 @@ endif()
 project(NVVL VERSION 1.0 LANGUAGES C CXX CUDA)
 
 include(cmake/CudaArchFlags.cmake)
+include(CheckStructHasMember)
+include(CheckTypeSize)
 
 # Dependencies
 ##############
@@ -16,6 +18,12 @@ foreach(m avformat avcodec avfilter avutil)
     pkg_check_modules(${m} REQUIRED IMPORTED_TARGET lib${m})
     list(APPEND FFmpeg_LIBS PkgConfig::${m})
 endforeach(m)
+
+set(CMAKE_REQUIRED_INCLUDES ${avformat_INCLUDE_DIRS})
+set(CMAKE_REQUIRED_LIBRARIES ${avformat_LIBRARIES})
+check_struct_has_member("struct AVStream" codecpar libavformat/avformat.h HAVE_AVSTREAM_CODECPAR LANGUAGE C)
+set(CMAKE_EXTRA_INCLUDE_FILES libavcodec/avcodec.h)
+check_type_size("AVBSFContext" AVBSFCONTEXT LANGUAGE CXX)
 
 # Targets
 #########
@@ -37,6 +45,14 @@ target_compile_features(nvvl PUBLIC cxx_std_14)
 
 target_compile_options(nvvl PRIVATE
     $<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-Wall;-Wno-unused-function;-fdiagnostics-color>)
+
+if (HAVE_AVSTREAM_CODECPAR)
+    target_compile_definitions(nvvl PRIVATE HAVE_AVSTREAM_CODECPAR=1)
+endif()
+
+if (HAVE_AVBSFCONTEXT)
+    target_compile_definitions(nvvl PRIVATE HAVE_AVBSFCONTEXT=1)
+endif()
 
 set_target_properties(nvvl PROPERTIES
     POSITION_INDEPENDENT_CODE ON

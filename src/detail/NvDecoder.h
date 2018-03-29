@@ -29,7 +29,7 @@ class NvDecoder : public Decoder
     NvDecoder();
 
     NvDecoder(int device_id, Logger& logger,
-              const AVCodecParameters* codecpar,
+              const CodecParameters* codecpar,
               AVRational time_base);
 
     bool initialized() const;

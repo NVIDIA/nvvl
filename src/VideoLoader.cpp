@@ -45,6 +45,16 @@ class AVDeleter {
     std::function<void(T**)> deleter_;
 };
 
+// except for the old AVBitSTreamFilterContext
+#ifndef HAVE_AVBSFCONTEXT
+class BSFDeleter {
+  public:
+    void operator()(AVBitStreamFilterContext* bsf) {
+        av_bitstream_filter_close(bsf);
+    }
+};
+#endif
+
 template<typename T>
 using av_unique_ptr = std::unique_ptr<T, AVDeleter<T>>;
 
@@ -52,6 +62,16 @@ template<typename T>
 av_unique_ptr<T> make_unique_av(T* raw_ptr, void (*deleter)(T**)) {
     return av_unique_ptr<T>(raw_ptr, AVDeleter<T>(deleter));
 }
+
+#ifdef HAVE_AVSTREAM_CODECPAR
+auto codecpar(AVStream* stream) -> decltype(stream->codecpar) {
+    return stream->codecpar;
+}
+#else
+auto codecpar(AVStream* stream) -> decltype(stream->codec) {
+    return stream->codec;
+}
+#endif
 
 } // anonymous namespace
 
@@ -78,7 +98,13 @@ class VideoLoader::impl {
         int vid_stream_idx_;
         int last_frame_;
 
+#ifdef HAVE_AVBSFCONTEXT
         av_unique_ptr<AVBSFContext> bsf_ctx_;
+#else
+        using bsf_ptr = std::unique_ptr<AVBitStreamFilterContext, BSFDeleter>;
+        bsf_ptr bsf_ctx_;
+        AVCodecContext* codec;
+#endif
         av_unique_ptr<AVFormatContext> fmt_ctx_;
     };
 
@@ -204,10 +230,10 @@ VideoLoader::impl::OpenFile& VideoLoader::impl::get_or_open_file(std::string fil
 
 
         auto stream = file.fmt_ctx_->streams[file.vid_stream_idx_];
-        auto codec_id = stream->codecpar->codec_id;
+        auto codec_id = codecpar(stream)->codec_id;
         if (width_ == 0) { // first file to open
-            width_ = stream->codecpar->width;
-            height_ = stream->codecpar->height;
+            width_ = codecpar(stream)->width;
+            height_ = codecpar(stream)->height;
             codec_id_ = codec_id;
 
             if (vid_decoder_) {
@@ -216,16 +242,16 @@ VideoLoader::impl::OpenFile& VideoLoader::impl::get_or_open_file(std::string fil
 
             vid_decoder_ = std::unique_ptr<detail::Decoder>{
                 new detail::NvDecoder(device_id_, log_,
-                                      stream->codecpar,
+                                      codecpar(stream),
                                       stream->time_base)};
         } else { // already opened a file
-            if (width_ != stream->codecpar->width ||
-                height_ != stream->codecpar->height ||
+            if (width_ != codecpar(stream)->width ||
+                height_ != codecpar(stream)->height ||
                 codec_id_ != codec_id) {
                 std::stringstream err;
                 err << "File " << filename << " is not the same size and codec as previous files."
                     << " This is not yet supported. ("
-                    << stream->codecpar->width << "x" << stream->codecpar->height
+                    << codecpar(stream)->width << "x" << codecpar(stream)->height
                     << " instead of "
                     << width_ << "x" << height_ << " or codec "
                     << codec_id << " != " << codec_id_ << ")";
@@ -243,23 +269,25 @@ VideoLoader::impl::OpenFile& VideoLoader::impl::get_or_open_file(std::string fil
         // todo check chroma format
 
         if (codec_id == AV_CODEC_ID_H264 || codec_id == AV_CODEC_ID_HEVC) {
-            const AVBitStreamFilter *bsf = nullptr;
-            if (codec_id == AV_CODEC_ID_H264)
-                bsf = av_bsf_get_by_name("h264_mp4toannexb");
-            else
-                bsf = av_bsf_get_by_name("hevc_mp4toannexb");
+            const char* filtername = nullptr;
+            if (codec_id == AV_CODEC_ID_H264) {
+                filtername = "h264_mp4toannexb";
+            } else {
+                filtername = "hevc_mp4toannexb";
+            }
 
+#ifdef HAVE_AVBSFCONTEXT
+            auto bsf = av_bsf_get_by_name(filtername);
             if (!bsf) {
                 throw std::runtime_error("Error finding bit stream filter.");
             }
-
             AVBSFContext* raw_bsf_ctx_ = nullptr;
             if (av_bsf_alloc(bsf, &raw_bsf_ctx_) < 0) {
                 throw std::runtime_error("Error allocating bit stream filter context.");
             }
             file.bsf_ctx_ = make_unique_av<AVBSFContext>(raw_bsf_ctx_, av_bsf_free);
 
-            if (avcodec_parameters_copy(file.bsf_ctx_->par_in, stream->codecpar) < 0) {
+            if (avcodec_parameters_copy(file.bsf_ctx_->par_in, codecpar(stream)) < 0) {
                 throw std::runtime_error("Error setting BSF parameters.");
             }
 
@@ -267,8 +295,15 @@ VideoLoader::impl::OpenFile& VideoLoader::impl::get_or_open_file(std::string fil
                 throw std::runtime_error("Error initializing BSF.");
             }
 
-            avcodec_parameters_copy(stream->codecpar, file.bsf_ctx_->par_out);
-
+            avcodec_parameters_copy(codecpar(stream), file.bsf_ctx_->par_out);
+#else
+            auto raw_bsf_ctx_ = av_bitstream_filter_init(filtername);
+            if (!raw_bsf_ctx_) {
+                throw std::runtime_error("Error finding h264_mp4toannexb bit stream filter.");
+            }
+            file.bsf_ctx_ = OpenFile::bsf_ptr{raw_bsf_ctx_};
+            file.codec = stream->codec;
+#endif
         } else {
             // todo setup an ffmpeg decoder?
             std::stringstream err;
@@ -309,7 +344,6 @@ void VideoLoader::impl::read_file() {
     // av_packet_unref is unlike the other libav free functions
     using pkt_ptr = std::unique_ptr<AVPacket, decltype(&av_packet_unref)>;
     auto raw_pkt = AVPacket{};
-    auto raw_filtered_pkt = AVPacket{};
     auto seek_hack = 1;
     while (!done_) {
         if (done_) {
@@ -407,6 +441,9 @@ void VideoLoader::impl::read_file() {
 
             if (file.bsf_ctx_ && pkt->size > 0) {
                 int ret;
+#ifdef HAVE_AVBSFCONTEXT
+                auto raw_filtered_pkt = AVPacket{};
+
                 if ((ret = av_bsf_send_packet(file.bsf_ctx_.get(), pkt.release())) < 0) {
                     throw std::runtime_error(std::string("BSF send packet failed:") +
                                              av_err2str(ret));
@@ -419,6 +456,41 @@ void VideoLoader::impl::read_file() {
                     throw std::runtime_error(std::string("BSF receive packet failed:") +
                                              av_err2str(ret));
                 }
+#else
+                AVPacket fpkt;
+                for (auto bsf = file.bsf_ctx_.get(); bsf; bsf = bsf->next) {
+                    fpkt = *pkt.get();
+                    ret = av_bitstream_filter_filter(bsf, file.codec, nullptr,
+                                                     &fpkt.data, &fpkt.size,
+                                                     pkt->data, pkt->size,
+                                                     !!(pkt->flags & AV_PKT_FLAG_KEY));
+                    if (ret < 0) {
+                        throw std::runtime_error(std::string("BSF error:") +
+                                                 av_err2str(ret));
+                    }
+                    if (ret == 0 && fpkt.data != pkt->data) {
+                        // fpkt is an offset into pkt, copy the smaller portion to the start
+                        if ((ret = av_copy_packet(&fpkt, pkt.get())) < 0) {
+                            av_free(fpkt.data);
+                            throw std::runtime_error(std::string("av_copy_packet error:") +
+                                                     av_err2str(ret));
+                        }
+                        ret = 1;
+                    }
+                    if (ret > 0) {
+                        // free the buffer in pkt and replace it with the newly created buffer in fpkt
+                        av_free_packet(pkt.get());
+                        fpkt.buf = av_buffer_create(fpkt.data, fpkt.size, av_buffer_default_free,
+                                                    nullptr, 0);
+                        if (!fpkt.buf) {
+                            av_free(fpkt.data);
+                            throw std::runtime_error(std::string("Unable to create buffer during bsf"));
+                        }
+                    }
+                    *pkt.get() = fpkt;
+                }
+                vid_decoder_->decode_packet(pkt.get());
+#endif
             } else {
                 vid_decoder_->decode_packet(pkt.get());
             }
@@ -429,23 +501,6 @@ void VideoLoader::impl::read_file() {
         vid_decoder_->decode_packet(nullptr); // what is this going to do??
     }
 
-    // TODO I don't think any of this is really necessary, especially
-    // sending the decoder output from the bsf
-    for(auto& f : open_files_) {
-        auto& file = f.second;
-        if (file.bsf_ctx_) {
-            av_bsf_send_packet(file.bsf_ctx_.get(), nullptr);
-            int ret;
-            while ((ret = av_bsf_receive_packet(file.bsf_ctx_.get(), &raw_filtered_pkt)) == 0) {
-                auto pkt = pkt_ptr(&raw_filtered_pkt, av_packet_unref);
-                vid_decoder_->decode_packet(pkt.get());
-            }
-            if (ret != AVERROR_EOF) {
-                std::cerr << "final av_bsf_receive_packet did not return AVERROR_EOF: "
-                          << av_err2str(ret) << std::endl;
-            }
-        }
-    }
     vid_decoder_->decode_packet(nullptr); // stop decoding
     log_.info() << "Leaving read_file" << std::endl;
 }
@@ -550,8 +605,8 @@ struct Size nvvl_video_size_from_file(const char* filename) {
     }
 
     auto stream = fmt_ctx->streams[vid_stream_idx_];
-    return Size{static_cast<uint16_t>(stream->codecpar->width),
-                static_cast<uint16_t>(stream->codecpar->height)};
+    return Size{static_cast<uint16_t>(codecpar(stream)->width),
+                static_cast<uint16_t>(codecpar(stream)->height)};
 }
 
 struct Size nvvl_video_size(VideoLoaderHandle loader) {

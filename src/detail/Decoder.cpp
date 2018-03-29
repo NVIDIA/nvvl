@@ -14,7 +14,7 @@ Decoder::Decoder() : device_id_{0}, stream_{}, codecpar_{}, log_{default_log}
 }
 
 Decoder::Decoder(int device_id, Logger& logger,
-                 const AVCodecParameters* codecpar)
+                 const CodecParameters* codecpar)
     : device_id_{device_id}, stream_{}, codecpar_{codecpar}, log_{logger}
 {
 }

@@ -28,7 +28,7 @@ NvDecoder::NvDecoder() {
 
 NvDecoder::NvDecoder(int device_id,
                      Logger& logger,
-                     const AVCodecParameters* codecpar,
+                     const CodecParameters* codecpar,
                      AVRational time_base)
     : Decoder{device_id, logger, codecpar},
       device_{}, context_{}, parser_{}, decoder_{},
