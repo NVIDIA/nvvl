@@ -68,7 +68,7 @@ target_include_directories(nvvl
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
-target_link_libraries(nvvl PUBLIC ${FFmpeg_LIBS} PRIVATE cuda nvcuvid)
+target_link_libraries(nvvl PUBLIC ${FFmpeg_LIBS} PRIVATE cuda nvcuvid nvidia-ml)
 
 # Installation
 ##############

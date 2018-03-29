@@ -9,13 +9,46 @@ namespace detail {
 
 Logger default_log;
 
-Decoder::Decoder() : device_id_{0}, stream_{}, codecpar_{}, log_{default_log}
+CUStream::CUStream(bool default_stream) : created_{false}, stream_{0} {
+    if (!default_stream) {
+        cucall(cudaStreamCreate(&stream_));
+        created_ = true;
+    }
+}
+
+CUStream::~CUStream() {
+    if (created_) {
+        cucall(cudaStreamDestroy(stream_));
+    }
+}
+
+CUStream::CUStream(CUStream&& other)
+    : created_{other.created_}, stream_{other.stream_}
+{
+    other.stream_ = 0;
+    other.created_ = false;
+}
+
+CUStream& CUStream::operator=(CUStream&& other) {
+    stream_ = other.stream_;
+    created_ = other.created_;
+    other.stream_ = 0;
+    other.created_ = false;
+    return *this;
+}
+
+
+CUStream::operator cudaStream_t() {
+    return stream_;
+}
+
+Decoder::Decoder() : device_id_{0}, stream_{true}, codecpar_{}, log_{default_log}
 {
 }
 
 Decoder::Decoder(int device_id, Logger& logger,
                  const CodecParameters* codecpar)
-    : device_id_{device_id}, stream_{}, codecpar_{codecpar}, log_{logger}
+    : device_id_{device_id}, stream_{false}, codecpar_{codecpar}, log_{logger}
 {
 }
 
@@ -47,6 +80,10 @@ int Decoder::decode_av_packet(AVPacket* pkt) {
 
 void Decoder::finish() {
     // Children will have to override if they want to do something
+}
+
+void Decoder::use_default_stream() {
+    stream_ = CUStream{true};
 }
 
 // This has to be here since Decoder is the only friend of PictureSequence

@@ -4,8 +4,10 @@
 #include <mutex>
 #include <queue>
 #include <sstream>
+#include <string>
 
 #include <cuda.h>
+#include <nvml.h>
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -54,7 +56,41 @@ NvDecoder::NvDecoder(int device_id,
                   << device_id_ << ", not initializing VideoDecoder\n";
         return;
     }
-    //std::cout << "Using device: " << device_name << std::endl;
+    log_.info() << "Using device: " << device_name << std::endl;
+
+    try {
+        auto nvml_ret = nvmlInit();
+        if (nvml_ret != NVML_SUCCESS) {
+            std::stringstream ss;
+            ss << "nvmlInit returned error " << nvml_ret;
+            throw std::runtime_error(ss.str());
+        }
+        char nvmod_version_string[NVML_SYSTEM_DRIVER_VERSION_BUFFER_SIZE];
+        nvml_ret = nvmlSystemGetDriverVersion(nvmod_version_string,
+                                              sizeof(nvmod_version_string));
+        if (nvml_ret != NVML_SUCCESS) {
+            std::stringstream ss;
+            ss << "nvmlSystemGetDriverVersion returned error " << nvml_ret;
+            throw std::runtime_error(ss.str());
+        }
+        auto nvmod_version = std::stof(nvmod_version_string);
+        if (nvmod_version < 384.0f) {
+            log_.info() << "Older kernel module version " << nvmod_version
+                        << " so using the default stream."
+                        << std::endl;
+            use_default_stream();
+        } else {
+            log_.info() << "Kernel module version " << nvmod_version
+                        << ", so using our own stream."
+                        << std::endl;
+        }
+    } catch(const std::exception& e) {
+        log_.warn() << "Unable to get nvidia kernel module version from NVML, "
+                    << "conservatively assuming it is an older version.\n"
+                    << "The error was: " << e.what()
+                    << std::endl;
+        use_default_stream();
+    }
 
     context_ = CUContext(device_);
     if (!context_.initialized()) {
@@ -191,11 +227,7 @@ NvDecoder::MappedFrame::MappedFrame(CUVIDPARSERDISPINFO* disp_info,
     params_.progressive_frame = disp_info->progressive_frame;
     params_.top_field_first = disp_info->top_field_first;
     params_.second_field = 0;
-#if CUDA_VERSION >= 9010
     params_.output_stream = stream;
-#elif CUDA_VERSION >= 9000
-    *(reinterpret_cast<CUstream*>(&params_.Reserved[1])) = stream;
-#endif
 
     if (!cucall(cuvidMapVideoFrame(decoder_, disp_info->picture_index,
                                    &ptr_, &pitch_, &params_))) {

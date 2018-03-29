@@ -30,24 +30,16 @@ struct FrameReq {
 
 class CUStream {
   public:
-    CUStream() {
-        cucall(cudaStreamCreate(&stream_));
-    }
-
-    ~CUStream() {
-        cucall(cudaStreamDestroy(stream_));
-    }
-
+    CUStream(bool default_stream);
+    ~CUStream();
     CUStream(const CUStream&) = delete;
     CUStream& operator=(const CUStream&) = delete;
-    CUStream(CUStream&&) = delete;
-    CUStream& operator=(CUStream&&) = delete;
-
-    operator cudaStream_t() const {
-        return stream_;
-    }
+    CUStream(CUStream&&);
+    CUStream& operator=(CUStream&&);
+    operator cudaStream_t();
 
   private:
+    bool created_;
     cudaStream_t stream_;
 };
 
@@ -74,6 +66,7 @@ class Decoder {
     virtual int decode_av_packet(AVPacket* pkt);
 
     void record_sequence_event_(PictureSequence& sequence);
+    void use_default_stream();
 
     // We're buddies with PictureSequence so we can forward a visitor
     // on to it's private implementation.
