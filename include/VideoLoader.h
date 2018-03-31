@@ -64,6 +64,13 @@ typedef void* VideoLoaderHandle;
 VideoLoaderHandle nvvl_create_video_loader(int device_id);
 
 /**
+ * Wrapper for VideoLoader::VideoLoader(int device_id, LogLevel log_level)
+ *
+ * Use when you want to set the log level right from creation
+ */
+VideoLoaderHandle nvvl_create_video_loader_with_log(int device_id, enum LogLevel log_level);
+
+/**
  * Frees the VideoLoader
  */
 void nvvl_destroy_video_loader(VideoLoaderHandle loader);

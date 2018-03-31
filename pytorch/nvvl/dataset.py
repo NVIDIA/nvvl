@@ -2,6 +2,7 @@ import bisect
 import cffi
 import collections
 import random
+import sys
 import torch
 import torch.utils.data
 
@@ -144,6 +145,14 @@ class ProcessDesc(object):
     def desc(self):
         return self._desc
 
+log_levels = {
+    "debug" : lib.LogLevel_Debug,
+    "info"  : lib.LogLevel_Info,
+    "warn"  : lib.LogLevel_Warn,
+    "error" : lib.LogLevel_Error,
+    "none"  : lib.LogLevel_None
+    }
+
 class VideoDataset(torch.utils.data.Dataset):
     """VideoDataset
 
@@ -162,9 +171,13 @@ class VideoDataset(torch.utils.data.Dataset):
         Describes processing to be done on the sequence to generate
         each data item. If None, each frame in the sequence will be
         returned as is. (Default: None)
+
+    log_level : string, optional
+        One of "debug", "info", "warn", "error", or "none".
+        (Default: "warn")
     """
     def __init__(self, filenames, sequence_length, device_id=0,
-                 processing = None):
+                 processing = None, log_level = "warn"):
         self.ffi = lib._ffi
         self.filenames = filenames
         self.sequence_length = sequence_length
@@ -174,7 +187,19 @@ class VideoDataset(torch.utils.data.Dataset):
         if self.processing is None:
             self.processing = {"default" : ProcessDesc()}
 
-        self.loader = lib.nvvl_create_video_loader(self.device_id)
+        try:
+            log_level = log_levels[log_level]
+        except KeyError:
+            print("Invalid log level", log_level, "using warn.", file=sys.stderr)
+            log_level = lib.LogLevel_Warn
+
+        if not filenames:
+            raise ValueError("Empty filenames list given to VideoDataset")
+
+        if sequence_length < 1:
+            raise ValueError("Sequence length must be at least 1")
+
+        self.loader = lib.nvvl_create_video_loader_with_log(self.device_id, log_level)
 
         self.total_frames = 0
         self.frame_counts = []
@@ -215,7 +240,14 @@ class VideoDataset(torch.utils.data.Dataset):
         return lib.nvvl_reset_stats(self.loader)
 
     def set_log_level(self, level):
-        lib.nvvl_set_log_level(self.loader, level)
+        """Sets the log level from now forward
+
+        Parameters
+        ----------
+        level : string
+            The log level, one of "debug", "info", "warn", "error", or "none"
+        """
+        lib.nvvl_set_log_level(self.loader, log_levels[level])
 
     def _read_sample(self, index):
         # we want bisect_right here so the first frame in a file gets the file, not the previous file

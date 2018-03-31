@@ -586,6 +586,11 @@ VideoLoaderHandle nvvl_create_video_loader(int device_id) {
     return reinterpret_cast<VideoLoaderHandle>(vl);
 }
 
+VideoLoaderHandle nvvl_create_video_loader_with_log(int device_id, LogLevel log_level) {
+    auto vl = new NVVL::VideoLoader(device_id, log_level);
+    return reinterpret_cast<VideoLoaderHandle>(vl);
+}
+
 void nvvl_destroy_video_loader(VideoLoaderHandle loader) {
     auto vl = reinterpret_cast<NVVL::VideoLoader*>(loader);
     delete vl;
