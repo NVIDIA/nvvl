@@ -191,7 +191,7 @@ straight forward:
 auto loader = NVVL::VideoLoader{device_id};
 ```
 
-You can then tell is which sequences to read via `read_sequence`:
+You can then tell it which sequences to read via `read_sequence`:
 
 ```C++
 loader.read_sequence(filename, frame_num, sequence_length);
