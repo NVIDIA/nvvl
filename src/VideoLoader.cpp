@@ -188,7 +188,6 @@ void VideoLoader::impl::read_sequence(std::string filename, int frame, int count
     auto req = detail::FrameReq{filename, frame, count};
     // give both reader thread and decoder a copy of what is coming
     send_queue_.push(req);
-    vid_decoder_->push_req(std::move(req));
 }
 
 Size VideoLoader::size() const {
@@ -203,6 +202,8 @@ VideoLoader::impl::OpenFile& VideoLoader::impl::get_or_open_file(std::string fil
     auto& file = open_files_[filename];
 
     if (!file.open) {
+        log_.debug() << "Opening file " << filename << std::endl;
+
         AVFormatContext* raw_fmt_ctx = nullptr;
         if (avformat_open_input(&raw_fmt_ctx, filename.c_str(), NULL, NULL) < 0) {
             throw std::runtime_error(std::string("Could not open file ") + filename);
@@ -239,12 +240,17 @@ VideoLoader::impl::OpenFile& VideoLoader::impl::get_or_open_file(std::string fil
             if (vid_decoder_) {
                 throw std::logic_error("width and height not set, but we have a decoder?");
             }
+            log_.info() << "Opened the first file, creating a video decoder" << std::endl;
 
             vid_decoder_ = std::unique_ptr<detail::Decoder>{
                 new detail::NvDecoder(device_id_, log_,
                                       codecpar(stream),
                                       stream->time_base)};
         } else { // already opened a file
+            if (!vid_decoder_) {
+                throw std::logic_error("width is already set but we don't have a vid_decoder_");
+            }
+
             if (width_ != codecpar(stream)->width ||
                 height_ != codecpar(stream)->height ||
                 codec_id_ != codec_id) {
@@ -361,6 +367,13 @@ void VideoLoader::impl::read_file() {
         }
 
         auto& file = get_or_open_file(req.filename);
+
+        // give the vid_decoder a copy of the req before we trash it
+        if (vid_decoder_) {
+            vid_decoder_->push_req(std::move(req));
+        } else {
+            throw std::logic_error("No video decoder even after opening a file");
+        }
 
         // we want to seek each time because even if we ended on the
         // correct key frame, we've flushed the decoder, so it needs

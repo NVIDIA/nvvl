@@ -308,11 +308,21 @@ int NvDecoder::handle_display_(CUVIDPARSERDISPINFO* disp_info) {
                               nv_time_base_, frame_base_);
 
     if (current_recv_.count <= 0) {
-        // possibly wait here until we know what we should be getting,
-        // which can happen when we're receiving "extra" after one
-        // request but no other requests have come in, in which case
-        // we might have the frame we want, but we might not, so have
-        // to wait to see what is requested.
+        if (recv_queue_.empty()) {
+            // we aren't expecting anything so just ditch this,
+            // guessing it is extra frames.  There is a small chance
+            // we are throwing out frames that will later be requested
+            // but if we wait here for a request to come in to check,
+            // we're stalling the loop that sends requests. We could
+            // send requests to the decoder outside of the read_file
+            // loop, but that has its own synchronization problems
+            // since the decoder is created in that loop, not worth
+            // the hassle on the tiny chance we are throwing way good
+            // frames here.
+            log_.info() << "Ditching frame " << frame << " since "
+                        << "the receive queue is empty." << std::endl;
+            return 1;
+        }
         // std::cout << "Moving on to next request, " << recv_queue_.size()
         //           << " reqs left" << std::endl;
         current_recv_ = recv_queue_.pop();
