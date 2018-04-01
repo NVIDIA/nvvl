@@ -9,7 +9,7 @@ project(NVVL VERSION 1.0 LANGUAGES C CXX CUDA)
 include(CheckStructHasMember)
 include(CheckTypeSize)
 
-include(cmake/BuildType.cmake)
+#include(cmake/BuildType.cmake)
 include(cmake/CudaArchFlags.cmake)
 
 # Dependencies
