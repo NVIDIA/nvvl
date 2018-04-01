@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
     nvvl_set_layer(sequence, &b, "pixels");
 
     nvvl_read_sequence(loader, argv[1], 0, sequence_count);
-    nvvl_receive_frames(loader, sequence);
+    nvvl_receive_frames_sync(loader, sequence);
     write_frames(sequence);
 
     nvvl_destroy_video_loader(loader);
