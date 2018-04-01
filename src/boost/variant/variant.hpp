@@ -71,10 +71,12 @@
 #include <boost/mpl/front.hpp>
 #include <boost/mpl/identity.hpp>
 #include <boost/mpl/if.hpp>
+#include <boost/mpl/insert_range.hpp>
 #include <boost/mpl/int.hpp>
 #include <boost/mpl/is_sequence.hpp>
 #include <boost/mpl/iterator_range.hpp>
 #include <boost/mpl/iter_fold_if.hpp>
+#include <boost/mpl/list.hpp>
 #include <boost/mpl/logical.hpp>
 #include <boost/mpl/max_element.hpp>
 #include <boost/mpl/next.hpp>
@@ -386,7 +388,7 @@ public: // visitor interfaces
 
 #if BOOST_WORKAROUND(__BORLANDC__, BOOST_TESTED_AT(0x0551)) || \
     BOOST_WORKAROUND(BOOST_MSVC, BOOST_TESTED_AT(1600))
-        operand; // suppresses warnings
+        (void)operand; // suppresses warnings
 #endif
 
         BOOST_VARIANT_AUX_RETURN_VOID;
@@ -1017,7 +1019,7 @@ struct less_comp
 //  * for wrappers (e.g., recursive_wrapper), the wrapper's held value.
 //  * for all other values, the value itself.
 //
-template <typename Visitor>
+template <typename Visitor, bool MoveSemantics>
 class invoke_visitor
 {
 private: // representation
@@ -1040,6 +1042,24 @@ public: // structors
 
 public: // internal visitor interfaces
 
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
+
+    //using workaround with is_same<T, T> to prenvent compilation error, because we need to use T in enable_if to make SFINAE work
+    template <typename T>
+    typename enable_if_c<MoveSemantics && is_same<T, T>::value, result_type>::type internal_visit(T&& operand, int)
+    {
+        return visitor_(::boost::move<T>(operand));
+    }
+
+    //using workaround with is_same<T, T> to prenvent compilation error, because we need to use T in enable_if to make SFINAE work
+    template <typename T>
+    typename disable_if_c<MoveSemantics && is_same<T, T>::value, result_type>::type internal_visit(T&& operand, int)
+    {
+        return visitor_(operand);
+    }
+
+#else
+
     template <typename T>
     result_type internal_visit(T& operand, int)
     {
@@ -1052,11 +1072,51 @@ public: // internal visitor interfaces
     {
         return visitor_(operand);
     }
-#   endif
+#   endif //BORLAND
+
+#endif //RVALUE REFERENCES
 
 #else // defined(BOOST_NO_VOID_RETURNS)
 
 private: // helpers, for internal visitor interfaces (below)
+
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
+
+    //using workaround with is_same<T, T> to prenvent compilation error, because we need to use T in enable_if to make SFINAE work
+    template <typename T>
+        typename enable_if<mpl::and_<MoveSemantics && is_same<T, T>::value>, BOOST_VARIANT_AUX_GENERIC_RESULT_TYPE(result_type)>::type
+    visit_impl(T&& operand, mpl::false_)
+    {
+        return visitor_(::boost::move(operand));
+    }
+
+    //using workaround with is_same<T, T> to prenvent compilation error, because we need to use T in enable_if to make SFINAE work
+    template <typename T>
+        typename enable_if_c<MoveSemantics && is_same<T, T>::value, BOOST_VARIANT_AUX_RETURN_VOID_TYPE>::type
+    visit_impl(T&& operand, mpl::true_)
+    {
+        visitor_(::boost::move(operand));
+        BOOST_VARIANT_AUX_RETURN_VOID;
+    }
+
+    //using workaround with is_same<T, T> to prenvent compilation error, because we need to use T in enable_if to make SFINAE work
+    template <typename T>
+        typename disable_if_c<MoveSemantics && is_same<T, T>::value, BOOST_VARIANT_AUX_GENERIC_RESULT_TYPE(result_type)>::type
+    visit_impl(T&& operand, mpl::false_)
+    {
+        return visitor_(operand);
+    }
+
+    //using workaround with is_same<T, T> to prenvent compilation error, because we need to use T in enable_if to make SFINAE work
+    template <typename T>
+        typename disable_if<MoveSemantics && is_same<T, T>::value, BOOST_VARIANT_AUX_RETURN_VOID_TYPE>::type
+    visit_impl(T&& operand, mpl::true_)
+    {
+        visitor_(operand);
+        BOOST_VARIANT_AUX_RETURN_VOID;
+    }
+
+#else
 
     template <typename T>
         BOOST_VARIANT_AUX_GENERIC_RESULT_TYPE(result_type)
@@ -1072,6 +1132,8 @@ private: // helpers, for internal visitor interfaces (below)
         visitor_(operand);
         BOOST_VARIANT_AUX_RETURN_VOID;
     }
+
+#endif //RVALUE_REFERENCES
 
 public: // internal visitor interfaces
 
@@ -2419,13 +2481,40 @@ public:
 
 public: // visitation support
 
+#ifndef BOOST_NO_CXX11_REF_QUALIFIERS
+
+    template <typename Visitor>
+        BOOST_VARIANT_AUX_GENERIC_RESULT_TYPE(
+              typename Visitor::result_type
+            )
+    apply_visitor(Visitor& visitor) &&
+    {
+        detail::variant::invoke_visitor<Visitor, true> invoker(visitor);
+        return this->internal_apply_visitor(invoker);
+    }
+
+    template <typename Visitor>
+        BOOST_VARIANT_AUX_GENERIC_RESULT_TYPE(
+              typename Visitor::result_type
+            )
+    apply_visitor(Visitor& visitor) const&&
+    {
+        detail::variant::invoke_visitor<Visitor, true> invoker(visitor);
+        return this->internal_apply_visitor(invoker);
+    }
+
+#endif
+
     template <typename Visitor>
         BOOST_VARIANT_AUX_GENERIC_RESULT_TYPE(
               typename Visitor::result_type
             )
     apply_visitor(Visitor& visitor)
+#ifndef BOOST_NO_CXX11_REF_QUALIFIERS
+    &
+#endif
     {
-        detail::variant::invoke_visitor<Visitor> invoker(visitor);
+        detail::variant::invoke_visitor<Visitor, false> invoker(visitor);
         return this->internal_apply_visitor(invoker);
     }
 
@@ -2434,8 +2523,11 @@ public: // visitation support
               typename Visitor::result_type
             )
     apply_visitor(Visitor& visitor) const
+#ifndef BOOST_NO_CXX11_REF_QUALIFIERS
+    &
+#endif
     {
-        detail::variant::invoke_visitor<Visitor> invoker(visitor);
+        detail::variant::invoke_visitor<Visitor, false> invoker(visitor);
         return this->internal_apply_visitor(invoker);
     }
 
@@ -2452,15 +2544,19 @@ struct make_variant_over
 private: // precondition assertions
 
     BOOST_STATIC_ASSERT(( ::boost::mpl::is_sequence<Types>::value ));
+    typedef typename boost::mpl::insert_range<
+      boost::mpl::list<>
+    , boost::mpl::end< boost::mpl::list<> >::type
+    , Types
+    >::type copied_sequence_t;
 
 public: // metafunction result
 
     typedef variant<
-          detail::variant::over_sequence< Types >
+          detail::variant::over_sequence<copied_sequence_t>
         > type;
 
 };
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // function template swap

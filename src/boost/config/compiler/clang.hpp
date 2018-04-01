@@ -27,6 +27,10 @@
 #define __has_attribute(x) 0
 #endif
 
+#ifndef __has_cpp_attribute
+#define __has_cpp_attribute(x) 0
+#endif
+
 #if !__has_feature(cxx_exceptions) && !defined(BOOST_NO_EXCEPTIONS)
 #  define BOOST_NO_EXCEPTIONS
 #endif
@@ -282,6 +286,16 @@
 #  define BOOST_NO_CXX14_VARIABLE_TEMPLATES
 #endif
 
+#if !defined(__cpp_structured_bindings) || (__cpp_structured_bindings < 201606)
+#  define BOOST_NO_CXX17_STRUCTURED_BINDINGS
+#endif
+
+// Clang 3.9+ in c++1z
+#if !__has_cpp_attribute(fallthrough) || __cplusplus < 201406L
+#  define BOOST_NO_CXX17_INLINE_VARIABLES
+#  define BOOST_NO_CXX17_FOLD_EXPRESSIONS
+#endif
+
 #if __cplusplus < 201103L
 #define BOOST_NO_CXX11_SFINAE_EXPR
 #endif
@@ -296,8 +310,18 @@
 #define BOOST_UNREACHABLE_RETURN(x) __builtin_unreachable();
 #endif
 
+#if (__clang_major__ == 3) && (__clang_minor__ == 0)
+// Apparently a clang bug:
+#  define BOOST_NO_CXX11_FIXED_LENGTH_VARIADIC_TEMPLATE_EXPANSION_PACKS
+#endif
+
 // Clang has supported the 'unused' attribute since the first release.
 #define BOOST_ATTRIBUTE_UNUSED __attribute__((__unused__))
+
+// Type aliasing hint.
+#if __has_attribute(__may_alias__)
+#  define BOOST_MAY_ALIAS __attribute__((__may_alias__))
+#endif
 
 #ifndef BOOST_COMPILER
 #  define BOOST_COMPILER "Clang version " __clang_version__
