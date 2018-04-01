@@ -6,9 +6,11 @@ endif()
 
 project(NVVL VERSION 1.0 LANGUAGES C CXX CUDA)
 
-include(cmake/CudaArchFlags.cmake)
 include(CheckStructHasMember)
 include(CheckTypeSize)
+
+include(cmake/BuildType.cmake)
+include(cmake/CudaArchFlags.cmake)
 
 # Dependencies
 ##############
