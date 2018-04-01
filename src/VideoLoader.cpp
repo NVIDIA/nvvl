@@ -508,10 +508,8 @@ void VideoLoader::impl::read_file() {
                 vid_decoder_->decode_packet(pkt.get());
             }
         }
-        // not sure exactly what this is doing to do... hopefully flush the decoder
-        // but leave it in a state that we can get more frames, seems to do the trick
-        // std::cout << "Sending a nullptr to decode_packet" << std::endl;
-        vid_decoder_->decode_packet(nullptr); // what is this going to do??
+        // flush the decoder
+        vid_decoder_->decode_packet(nullptr);
     }
 
     vid_decoder_->decode_packet(nullptr); // stop decoding
