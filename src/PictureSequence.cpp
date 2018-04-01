@@ -15,7 +15,6 @@ PictureSequence::~PictureSequence() = default;
 PictureSequence::PictureSequence(PictureSequence&&) = default;
 PictureSequence& PictureSequence::operator=(PictureSequence&&) = default;
 
-// these get instantiated for all the types we care about by the C interface
 template<typename T>
 void PictureSequence::set_layer(std::string name, const PictureSequence::Layer<T>& layer) {
     pImpl->set_layer(name, layer);
@@ -31,6 +30,32 @@ const PictureSequence::Layer<T>& PictureSequence::get_layer(std::string name) co
     return pImpl->get_layer<T>(name);
 }
 
+// need to explicitely instantiate these even though they are used by
+// the C interface since g++ with -O2 will inline them in the C
+// functions and not export the symbols
+
+// instantiation code based on:
+// https://stackoverflow.com/questions/5715586/how-to-explicitly-instantiate-a-template-for-all-members-of-mpl-vector-in-c/35895553
+// but tweaked a bit rewritten with mp11. Basically we make a pointer
+// to each function we want and that forces an instantiation. Not very
+// pretty or readable, but makes it so we only have to write the types
+// out once in PictureSequenceImpl.h
+namespace {
+template<class L> struct mp_instantiate_layer_funcs;
+template<template<class...> class L> struct mp_instantiate_layer_funcs<L<>> {};
+template<template<class...> class L, class T1, class... T>
+struct mp_instantiate_layer_funcs<L<T1, T...>> {
+    using PS = PictureSequence;
+    mp_instantiate_layer_funcs() :
+        sl{&PS::set_layer<T1>}, gl{&PS::get_layer<T1>}, gl2{&PS::get_layer<T1>} {}
+    void (PS::*sl)(std::string, const PS::Layer<T1>&);
+    PS::Layer<T1> (PS::*gl)(std::string, int) const;
+    const PS::Layer<T1>& (PS::*gl2)(std::string) const;
+    mp_instantiate_layer_funcs<L<T...>> next;
+};
+static mp_instantiate_layer_funcs<PDTypes> layer_funcs;
+} // end anon namespace
+
 bool PictureSequence::has_layer(std::string name) const {
     return pImpl->has_layer(name);
 }
@@ -44,6 +69,22 @@ template<typename T>
 const std::vector<T>& PictureSequence::get_meta(std::string name) const {
     return pImpl->get_meta<T>(name);
 }
+
+// do the same as above for meta funcs
+namespace {
+template<class L> struct mp_instantiate_meta_funcs;
+template<template<class...> class L> struct mp_instantiate_meta_funcs<L<>> {};
+template<template<class...> class L, class T1, class... T>
+struct mp_instantiate_meta_funcs<L<T1, T...>> {
+    using PS = PictureSequence;
+    mp_instantiate_meta_funcs() :
+        goam{&PS::get_or_add_meta<T1>}, gm{&PS::get_meta<T1>} {}
+    std::vector<T1>& (PS::*goam)(std::string);
+    const std::vector<T1>& (PS::*gm)(std::string) const;
+    mp_instantiate_meta_funcs<L<T...>> next;
+};
+static mp_instantiate_meta_funcs<PMTypes> meta_funcs;
+} // end anon namespace
 
 bool PictureSequence::has_meta(std::string name) const {
     return pImpl->has_meta(name);
@@ -113,98 +154,67 @@ PictureSequenceHandle nvvl_create_sequence(uint16_t count) {
     return reinterpret_cast<PictureSequenceHandle>(ps);
 }
 
-void nvvl_set_layer(PictureSequenceHandle sequence, const NVVL_PicLayer* layer, const char* name) {
+void* nvvl_get_or_add_meta_array(PictureSequenceHandle sequence,
+                                 NVVL_PicMetaType type, const char* name) {
     auto ps = reinterpret_cast<PictureSequence*>(sequence);
-
-    switch(layer->type) {
-        case PDT_NONE:
-            std::cerr << "Layer type is not set" << std::endl;
-            return;
-
-        case PDT_BYTE:
-            ps->set_layer<uint8_t>(name, layer);
-            return;
-
-        case PDT_HALF:
-            ps->set_layer<half>(name, layer);
-            return;
-
-        case PDT_FLOAT:
-            ps->set_layer<float>(name, layer);
-            return;
-    }
-    std::cerr << "Unimplemented layer type" << std::endl;
-}
-
-void* nvvl_get_or_add_meta_array(PictureSequenceHandle sequence, NVVL_PicMetaType type, const char* name) {
-    // TODO catch boost::get exception and return a valid error
-    auto ps = reinterpret_cast<PictureSequence*>(sequence);
-    switch(type) {
-        case PMT_UINT8:
-            return reinterpret_cast<void*>(ps->get_or_add_meta<uint8_t>(name).data());
-
-        case PMT_UINT16:
-            return reinterpret_cast<void*>(ps->get_or_add_meta<uint16_t>(name).data());
-
-        case PMT_UINT32:
-            return reinterpret_cast<void*>(ps->get_or_add_meta<uint32_t>(name).data());
-
-        case PMT_INT:
-            return reinterpret_cast<void*>(ps->get_or_add_meta<int>(name).data());
-
-        case PMT_FLOAT:
-            return reinterpret_cast<void*>(ps->get_or_add_meta<float>(name).data());
-
-        case PMT_STRING:
-            // Can't currently get an array of strings
-            return nullptr;
-
-        default:
-            std::cerr << "Unimplemented meta array type" << std::endl;
-            return nullptr;
-    }
-    return nullptr;
-}
-
-const void* nvvl_get_meta_array(PictureSequenceHandle sequence, NVVL_PicMetaType type, const char* name) {
-    // couldn't figure out how to not duplicate switch above... can't
-    // really have a pointer to a template member function...
-    auto ps = reinterpret_cast<const PictureSequence*>(sequence);
+    void* res = nullptr;
+    using namespace boost::mp11;
     try {
-        switch(type) {
-            case PMT_UINT8:
-                return reinterpret_cast<const void*>(ps->get_meta<uint8_t>(name).data());
+        mp_for_each<NVVL::PMTMap>([&](auto P) -> void {
+                if(type == mp_first<decltype(P)>::value) {
+                    using T = mp_second<decltype(P)>;
+                    res = reinterpret_cast<void*>(ps->get_or_add_meta<T>(name).data());
+                }
+            });
+    } catch (const boost::bad_get&) {
+        std::cerr << "Tried to get wrong type from a sequence's meta array" << std::endl;
+        return nullptr;
+    }
+    if (!res) {
+        std::cerr << "Unimplemented meta array type" << std::endl;
+    }
+    return res;
+}
 
-            case PMT_UINT16:
-                return reinterpret_cast<const void*>(ps->get_meta<uint16_t>(name).data());
+class not_implemented : public std::exception {
+  public:
+    virtual const char* what() const throw () {
+        return "Functionality not yet implemented.";
+    }
+};
 
-            case PMT_UINT32:
-                return reinterpret_cast<const void*>(ps->get_meta<uint32_t>(name).data());
-
-            case PMT_INT:
-                return reinterpret_cast<const void*>(ps->get_meta<int>(name).data());
-
-            case PMT_FLOAT:
-                return reinterpret_cast<const void*>(ps->get_meta<float>(name).data());
-
-            case PMT_STRING:
-                // Can't currently get an array of strings
-                return nullptr;
-
-            default:
-                std::cerr << "Unimplemented meta array type" << std::endl;
-                return nullptr;
-        }
+const void* nvvl_get_meta_array(PictureSequenceHandle sequence,
+                                NVVL_PicMetaType type, const char* name) {
+    auto ps = reinterpret_cast<const PictureSequence*>(sequence);
+    const void* res = nullptr;
+    using namespace boost::mp11;
+    if (type == PMT_STRING) {
+        // Can't currently get an array of strings, shouldn't be too
+        // bad to implement if necessary, but I believe would require
+        // allocating some memory, which would be unfortunate
+        throw not_implemented();
+    }
+    try {
+        mp_for_each<NVVL::PMTMap>([&](auto P) -> void {
+                if(type == mp_first<decltype(P)>::value) {
+                    using T = mp_second<decltype(P)>;
+                    res = reinterpret_cast<const void*>(ps->get_meta<T>(name).data());
+                }
+            });
     } catch (const std::runtime_error&) {
         return nullptr;
     } catch (const boost::bad_get&) {
         std::cerr << "Tried to get wrong type from a sequence's meta array" << std::endl;
         return nullptr;
     }
-    return nullptr;
+    if (!res) {
+        std::cerr << "Unimplemented meta array type" << std::endl;
+    }
+    return res;
 }
 
-const char* nvvl_get_meta_str(PictureSequenceHandle sequence, const char* name, int index) {
+const char* nvvl_get_meta_str(PictureSequenceHandle sequence,
+                              const char* name, int index) {
     // TODO catch boost::get exception and return a valid error
     auto ps = reinterpret_cast<const PictureSequence*>(sequence);
     return ps->get_meta<std::string>(name)[index].c_str();
@@ -215,10 +225,31 @@ int nvvl_get_sequence_count(PictureSequenceHandle sequence) {
     return ps->count();
 }
 
-NVVL_PicLayer nvvl_get_layer(PictureSequenceHandle sequence, NVVL_PicDataType type, const char* name) {
-    // TODO catch boost::get exception and return a valid error
+void nvvl_set_layer(PictureSequenceHandle sequence,
+                    const NVVL_PicLayer* layer, const char* name) {
     auto ps = reinterpret_cast<PictureSequence*>(sequence);
-    NVVL_PicLayer ret;
+    if (layer->type == PDT_NONE) {
+        std::cerr << "Layer type is not set" << std::endl;
+        return;
+    }
+    auto set = false;
+    using namespace boost::mp11;
+    mp_for_each<NVVL::PDTMap>([&](auto P) -> void {
+            if (!set && layer->type == mp_first<decltype(P)>::value) {
+                using T = mp_second<decltype(P)>;
+                ps->set_layer<T>(name, layer);
+                set = true;
+            }
+        });
+    if (!set) {
+        std::cerr << "Unimplemented layer type" << std::endl;
+    }
+}
+
+NVVL_PicLayer nvvl_get_layer(PictureSequenceHandle sequence,
+                             NVVL_PicDataType type, const char* name) {
+    auto ps = reinterpret_cast<PictureSequence*>(sequence);
+    auto ret = NVVL_PicLayer{};
     ret.type = type;
 
     // here we convert back from statically typed C++ to dynamically typed C
@@ -227,33 +258,27 @@ NVVL_PicLayer nvvl_get_layer(PictureSequenceHandle sequence, NVVL_PicDataType ty
         ret.index_map = l.index_map.data();
         ret.data = reinterpret_cast<void*>(l.data);
     };
-
-    switch(type) {
-        case PDT_BYTE:
-            convert(ps->get_layer<uint8_t>(name));
-            break;
-
-        case PDT_HALF:
-            convert(ps->get_layer<half>(name));
-            break;
-
-        case PDT_FLOAT:
-            convert(ps->get_layer<float>(name));
-            break;
-
-        default:
-            std::cerr << "Unimplemented layer type" << std::endl;
-            ret.data = nullptr;
-            break;
+    using namespace boost::mp11;
+    try {
+        mp_for_each<NVVL::PDTMap>([&](auto P) -> void {
+                if (type == mp_first<decltype(P)>::value) {
+                    using T = mp_second<decltype(P)>;
+                    convert(ps->get_layer<T>(name));
+            }
+        });
+    } catch (const boost::bad_get&) {
+        std::cerr << "Tried to get wrong type from a sequence's layer" << std::endl;
+    }
+    if (!ret.data) {
+        std::cerr << "Unimplemented layer type" << std::endl;
     }
     return ret;
 }
 
 NVVL_PicLayer nvvl_get_layer_indexed(PictureSequenceHandle sequence, NVVL_PicDataType type,
                                      const char* name, int index) {
-    // TODO catch boost::get exception and return a valid error
     auto ps = reinterpret_cast<PictureSequence*>(sequence);
-    NVVL_PicLayer ret;
+    auto ret = NVVL_PicLayer{};
     ret.type = type;
 
     // here we convert back from statically typed C++ to dynamically typed C
@@ -267,24 +292,19 @@ NVVL_PicLayer nvvl_get_layer_indexed(PictureSequenceHandle sequence, NVVL_PicDat
         ret.index_map = nullptr;
         ret.data = reinterpret_cast<void*>(l.data);
     };
-
-    switch(type) {
-        case PDT_BYTE:
-            convert(ps->get_layer<uint8_t>(name, index));
-            break;
-
-        case PDT_HALF:
-            convert(ps->get_layer<half>(name, index));
-            break;
-
-        case PDT_FLOAT:
-            convert(ps->get_layer<float>(name, index));
-            break;
-
-        default:
-            std::cerr << "Unimplemented layer type" << std::endl;
-            ret.data = nullptr;
-            break;
+    using namespace boost::mp11;
+    try {
+        mp_for_each<NVVL::PDTMap>([&](auto P) -> void {
+                if (type == mp_first<decltype(P)>::value) {
+                    using T = mp_second<decltype(P)>;
+                    convert(ps->get_layer<T>(name, index));
+            }
+        });
+    } catch (const boost::bad_get&) {
+        std::cerr << "Tried to get wrong type from a sequence's layer" << std::endl;
+    }
+    if (!ret.data) {
+        std::cerr << "Unimplemented layer type" << std::endl;
     }
     return ret;
 }

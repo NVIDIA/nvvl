@@ -235,11 +235,7 @@ typedef void* PictureSequenceHandle;
  * Different types of metadata that can be retrieved
  */
 enum NVVL_PicMetaType {
-    PMT_UINT8,
-    PMT_UINT16,
-    PMT_UINT32,
     PMT_INT,
-    PMT_FLOAT,
     PMT_STRING
 };
 

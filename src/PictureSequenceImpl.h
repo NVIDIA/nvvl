@@ -1,8 +1,10 @@
 #pragma once
 
+#include <boost/mp11.hpp>
 #include <boost/variant.hpp>
 #include <condition_variable>
 #include <mutex>
+#include <type_traits>
 #include <unordered_map>
 
 #include <cuda_fp16.h>
@@ -66,6 +68,29 @@ class CudaEvent {
     unsigned int flags_;
     cudaEvent_t event_;
 };
+
+// map NVVL_Pic{Data,Meta}Types to real types
+
+// boost::mp11 prepends all signals with "mp_" making this tolerable
+using namespace boost::mp11;
+template<NVVL_PicDataType I>
+using mp_pdt = std::integral_constant<NVVL_PicDataType, I>;
+
+using PDTMap = mp_list<
+    mp_list<mp_pdt<PDT_BYTE>, uint8_t>,
+    mp_list<mp_pdt<PDT_HALF>, half>,
+    mp_list<mp_pdt<PDT_FLOAT>, float>
+    >;
+using PDTypes = mp_transform<mp_second, PDTMap>;
+
+template<NVVL_PicMetaType I>
+using mp_pmt = std::integral_constant<NVVL_PicMetaType, I>;
+
+using PMTMap = mp_list<
+    mp_list<mp_pmt<PMT_INT>, int>,
+    mp_list<mp_pmt<PMT_STRING>, std::string>
+    >;
+using PMTypes = mp_transform<mp_second, PMTMap>;
 
 class PictureSequence::impl {
   public:
@@ -152,17 +177,11 @@ class PictureSequence::impl {
     void wait(cudaStream_t stream) const;
 
   private:
-    using LayerVariant = boost::variant<Layer<uint8_t>,
-                                        Layer<half>,
-                                        Layer<float>>;
+    template<class T> using add_layer = Layer<T>;
+    using LayerVariant = mp_rename<mp_transform<add_layer, PDTypes>, boost::variant>;
 
-    using Meta = boost::variant<std::vector<int>,
-                                std::vector<uint8_t>,
-                                std::vector<uint16_t>,
-                                std::vector<uint32_t>,
-                                std::vector<float>,
-                                std::vector<const void*>,
-                                std::vector<std::string>>;
+    template<class T> using add_vector = std::vector<T>;
+    using Meta = mp_rename<mp_transform<add_vector, PMTypes>, boost::variant>;
 
     std::unordered_map<std::string, LayerVariant> layers_;
     std::unordered_map<std::string, Meta> meta_;
