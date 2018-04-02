@@ -70,11 +70,10 @@ target_include_directories(nvvl
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
-target_link_libraries(nvvl PUBLIC ${FFmpeg_LIBS} PRIVATE cuda nvcuvid nvidia-ml)
+target_link_libraries(nvvl PRIVATE ${FFmpeg_LIBS} cuda nvcuvid nvidia-ml)
 
 # Installation
 ##############
-
 include(GNUInstallDirs)
 set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/NVVL)
 
@@ -117,10 +116,10 @@ install(FILES
 )
 
 # Exporting from the build tree
-export(EXPORT nvvl-targets FILE ${CMAKE_CURRENT_BINARY_DIR}/VideoReaderTargets.cmake NAMESPACE VideoReader::)
+export(EXPORT nvvl-targets FILE ${CMAKE_CURRENT_BINARY_DIR}/NVVLTargets.cmake NAMESPACE NVVL::)
 
 #Register package in user's package registry
 export(PACKAGE NVVL)
 
-add_subdirectory(doc)
+add_subdirectory(doc EXCLUDE_FROM_ALL)
 add_subdirectory(doc/examples EXCLUDE_FROM_ALL)
