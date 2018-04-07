@@ -11,8 +11,10 @@ from torch.nn.functional import upsample
 
 import sys
 sys.path.append('flownet2-pytorch/networks')
-from submodules import *
-
+try:
+    from submodules import *
+except ModuleNotFoundError:
+    raise ModuleNotFoundError("flownet2-pytorch not found, did you update the git submodule?")
 
 def lp_error(img1, img2, lp=2):
     return torch.mean((img1 - img2)**lp)
