@@ -1,3 +1,4 @@
 [submodule "examples/pytorch_superres/flownet2-pytorch"]
 	path = examples/pytorch_superres/flownet2-pytorch
 	url = https://github.com/NVIDIA/flownet2-pytorch
+	ignore = untracked
