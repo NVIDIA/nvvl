@@ -6,9 +6,26 @@ default_codec = "h264"
 default_crf = "18"
 default_keyint = "4"
 
-def downsample_scenes(master_data, resolution):
+def downsample_scenes(master_data, resolution, codec, crf, keyint):
 
-    master_out_path = os.path.join(master_data,resolution,'scenes')
+    desc = [resolution, 'scenes']
+    if not codec:
+        codec = default_codec
+    else:
+        desc += [codec]
+    assert codec in ['h264', 'hevc'], '--codec must be one of h264 or hevc'
+
+    if not crf:
+        crf = default_crf
+    else:
+        desc += ["crf" + crf]
+
+    if not keyint:
+        keyint = default_keyint
+    else:
+        desc += ["keyint" + keyint]
+
+    master_out_path = os.path.join(master_data,*desc)
 
     print("Writing output files to:", master_out_path)
 
@@ -30,14 +47,21 @@ def downsample_scenes(master_data, resolution):
             raise ValueError("Unknown resolution")
         res_args = ["-vf", "scale=%s" % res_str, "-sws_flags", "bilinear"]
 
-    codec_args = ["-c:v", "libx264", "-g", "4", "-keyint_min", "4",
-                  "-profile:v", "high"]
+    codec_args = ["-preset", "slow"]
+    if codec == 'h264':
+        codec_args = ["-c:v", "libx264", "-g", keyint, "-keyint_min", keyint,
+                      "-profile:v", "high"]
+    elif codec == 'hevc' or codec == 'h265':
+        codec_args = ["-c:v", "libx265", "-x265-params",
+                      "keyint=%s:no-open-gop=1" % (keyint)]
+    else:
+        raise ValueError("Unknown codec")
 
     def transcode(in_path, out_path):
             cmd = ["ffmpeg", "-i", in_path]
             cmd += res_args
             cmd += codec_args
-            cmd += ["-crf", "18", "-an", out_path]
+            cmd += ["-crf", crf, "-an", out_path]
             print("Running:", " ".join(cmd))
             subprocess.run(cmd)
 
@@ -54,6 +78,12 @@ if __name__=='__main__':
                         help="Path to root data directory")
     parser.add_argument('--resolution', type=str, default=None,
                         help="one of '4K', '1080p', '720p', or '540p'")
+    parser.add_argument('--codec', type=str, default=None,
+                        help="one of 'h264' or 'hevc'")
+    parser.add_argument('--crf', type=str, default=None,
+                        help="crf value passed to ffmpeg")
+    parser.add_argument('--keyint', type=str, default=None,
+                        help="keyframe interval")
     args = parser.parse_args()
     assert args.master_data is not None, 'Provide --master_data path to root data directory containing split scenes'
     assert args.resolution in ['4K', '1080p', '720p', '540p'], '--resolution must be one of 1080p, 720p, 540p'
