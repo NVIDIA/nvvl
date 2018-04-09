@@ -8,27 +8,36 @@ RUN apt-get update --fix-missing && \
 ENV NVIDIA_DRIVER_CAPABILITIES=video,compute,utility
 
 # minimal ffmpeg from source
-RUN apt-get install -y yasm wget && \
+RUN apt-get install -y \
+      yasm \
+      libx264-148 libx264-dev \
+      libx265-79 libx265-dev \
+      pkg-config && \
     cd /tmp && wget -q http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2 && \
     tar xf ffmpeg-$FFMPEG_VERSION.tar.bz2 && \
     rm ffmpeg-$FFMPEG_VERSION.tar.bz2 && \
     cd ffmpeg-$FFMPEG_VERSION && \
     ./configure \
-      --prefix=/usr/local \
-      --disable-static \
-      --disable-all \
-      --disable-autodetect \
-      --disable-iconv \
-      --enable-shared \
-      --enable-avformat \
-      --enable-avcodec \
-      --enable-avfilter \
-      --enable-protocol=file \
-      --enable-demuxer=mov,matroska \
-      --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb && \
+    --prefix=/usr/local \
+    --disable-static --enable-shared \
+    --disable-all --disable-autodetect --disable-iconv \
+    --enable-avformat --enable-avcodec --enable-avfilter \
+    --enable-protocol=file \
+    --enable-demuxer=mov,matroska,image2 \
+    --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb \
+    --enable-gpl --enable-libx264 --enable-libx265 --enable-zlib \
+    --enable-swresample --enable-ffmpeg \
+    --enable-swscale --enable-filter=scale \
+    --enable-muxer=mp4,matroska,image2 \
+    --enable-cuvid --enable-nvenc --enable-cuda \
+    --enable-decoder=h264,h264_cuvid,hevc,hevc_cuvid,png \
+    --enable-encoder=h264_nvenc,hevc_nvenc,libx264,libx265,png \
+    --enable-hwaccel=h264_cuvid,hevc_cuvid \
+    --enable-parser=h264,hevc,png && \
     make -j8 && make install && \
     cd /tmp && rm -rf ffmpeg-$FFMPEG_VERSION && \
-    apt-get remove -y yasm
+    apt-get remove -y yasm libx264-dev libx265-dev && \
+    apt-get auto-remove -y
 
 # install stub library since driver libs aren't available at image build time
 # this is a temporary requirement that will go away in future cuda versions
