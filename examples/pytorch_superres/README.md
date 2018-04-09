@@ -105,22 +105,22 @@ the data for training you should run the following steps:
 ```bash
 nvidia-docker run --rm -it --ipc=host --net=host -e NVIDIA_DRIVER_CAPABILITIES=video,compute,utility -v $PWD:/workspace -v <data_dir>:<data_dir> -u $(id -u):$(id -g) vsrnet /bin/bash
 
-python ./tools/split_scenes.py --raw_data <data_dir> --out_data <data_dir>
+python ./tools/split_scenes.py --raw_data <path_to_mp4_file> --out_data <data_dir>
 ```
 
-The scenes will be written to `<data_dir>/4K/scenes`.  The scenes will
+The scenes will be written to `<data_dir>/orig/scenes`.  The scenes will
 be split into training and validation folders.
 
-2. Convert the scenes to a lower resolution:
+2. Transcode the scenes to have a smaller keyframe interval and possibly a lower resolution:
 
 ```bash
 nvidia-docker run --rm -it --ipc=host --net=host -e NVIDIA_DRIVER_CAPABILITIES=video,compute,utility -v $PWD:/workspace -v <data_dir>:<data_dir> -u $(id -u):$(id -g) vsrnet /bin/bash
 
-python ./tools/downsample_scenes.py --master_data <data_dir> --resolution <resolution>
+python ./tools/transcode_scenes.py --master_data <data_dir> --resolution <resolution>
 ```
 
-where `<resolution>` can be one of: `1080p`, `720p` or `540p`.  The downsampled scenes will be written to `<data_dir>/<resolution>/scenes` and split into
-training and validation folders.
+where `<resolution>` can be one of: '4K', `1080p`, `720p` or `540p`.  The transcoded scenes will be written to `<data_dir>/<resolution>/scenes` and split into
+training and validation folders. Note that while you can split and transcode the original video in one step, we found it to be much faster to split first, then transcode.
 
 3. Extract .png frames from scene .mp4 files:
 
