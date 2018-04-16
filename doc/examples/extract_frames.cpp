@@ -43,38 +43,38 @@ auto get_data(size_t* ret_pitch) {
 template<typename T>
 cv::cuda::GpuMat get_pixels(const PictureSequence& sequence, int index,
                             std::initializer_list<int> channel_order) {
-    auto pixels = sequence.get_layer<T>("pixels", index);
+    auto pixels = sequence.get_layer<T>("data", index);
     auto type = cv::DataType<T>::type;
     auto channels = std::vector<cv::cuda::GpuMat>();
     for (auto i : channel_order) {
-        channels.emplace_back(sequence.height, sequence.width, type,
-                              pixels.data + pixels.stride.c*i,
-                              pixels.stride.y * sizeof(T));
+        channels.emplace_back(pixels.desc.height, pixels.desc.width, type,
+                              pixels.data + pixels.desc.stride.c*i,
+                              pixels.desc.stride.y * sizeof(T));
     }
     auto tmp = cv::cuda::GpuMat();
     cv::cuda::merge(channels, tmp);
     auto out = cv::cuda::GpuMat();
-    tmp.convertTo(out, CV_8U, pixels.normalized ? 255.0 : 1.0);
+    tmp.convertTo(out, CV_8U, pixels.desc.normalized ? 255.0 : 1.0);
     return out;
 }
 
 template<>
 cv::cuda::GpuMat get_pixels<half>(const PictureSequence& sequence, int index,
                                   std::initializer_list<int> channel_order) {
-    auto pixels = sequence.get_layer<half>("pixels", index);
+    auto pixels = sequence.get_layer<half>("data", index);
     auto channels = std::vector<cv::cuda::GpuMat>();
     for (auto i : channel_order) {
-        auto channel = cv::cuda::GpuMat(sequence.height, sequence.width, CV_32FC1);
+        auto channel = cv::cuda::GpuMat(pixels.desc.height, pixels.desc.width, CV_32FC1);
 
-        half2float(pixels.data + pixels.stride.c*i, pixels.stride.y,
-                   sequence.width, sequence.height,
+        half2float(pixels.data + pixels.desc.stride.c*i, pixels.desc.stride.y,
+                   pixels.desc.width, pixels.desc.height,
                    channel.ptr<float>(), channel.step1());
         channels.push_back(channel);
     }
     auto tmp = cv::cuda::GpuMat();
     cv::cuda::merge(channels, tmp);
     auto out = cv::cuda::GpuMat();
-    tmp.convertTo(out, CV_8U, pixels.normalized ? 255.0 : 1.0);
+    tmp.convertTo(out, CV_8U, pixels.desc.normalized ? 255.0 : 1.0);
     return out;
 }
 
@@ -82,10 +82,10 @@ template<typename T>
 void write_frame(const PictureSequence& sequence) {
     auto frame_nums = sequence.get_meta<int>("frame_num");
     for (int i = 0; i < sequence.count(); ++i) {
-        auto pixels = sequence.get_layer<T>("pixels", i);
+        auto pixels = sequence.get_layer<T>("data", i);
 
         auto gpu_bgr = cv::cuda::GpuMat();
-        if (pixels.color_space == ColorSpace_RGB) {
+        if (pixels.desc.color_space == ColorSpace_RGB) {
             gpu_bgr = get_pixels<T>(sequence, i, {2, 1, 0});
         } else {
             auto gpu_yuv = get_pixels<T>(sequence, i, {0, 2, 1});
