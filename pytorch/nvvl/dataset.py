@@ -331,8 +331,9 @@ class VideoDataset(torch.utils.data.Dataset):
 
     def _create_tensor_map(self, batch_size=1):
         tensor_map = {}
-        for name, desc in self.processing.items():
-            tensor_map[name] = desc.tensor_type(batch_size, *desc.get_dims())
+        with torch.cuda.device(self.device_id):
+            for name, desc in self.processing.items():
+                tensor_map[name] = desc.tensor_type(batch_size, *desc.get_dims())
         return tensor_map
 
     def __getitem__(self, index):
