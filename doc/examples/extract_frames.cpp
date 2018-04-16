@@ -139,7 +139,7 @@ void write_frame(const PictureSequence& sequence) {
         uint32_t sum = 0;
 
         for (int c = 0; c < 3; ++c) {
-            if (cudaMemcpy(tmp, data + data_stride * pixels.desc.height * c,
+            if (cudaMemcpy(tmp, data + data_stride*pixels.desc.height*c,
                            sample_count * sizeof(*data), cudaMemcpyDeviceToHost)
                 != cudaSuccess) {
                 throw std::runtime_error("Couldn't copy frame data to cpu");
