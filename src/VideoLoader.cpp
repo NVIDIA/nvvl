@@ -512,7 +512,9 @@ void VideoLoader::impl::read_file() {
         vid_decoder_->decode_packet(nullptr);
     }
 
-    vid_decoder_->decode_packet(nullptr); // stop decoding
+    if (vid_decoder_) {
+        vid_decoder_->decode_packet(nullptr); // stop decoding
+    }
     log_.info() << "Leaving read_file" << std::endl;
 }
 
