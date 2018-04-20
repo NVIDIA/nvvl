@@ -151,11 +151,12 @@ Thus, to get good performance when randomly reading short sequences
 from a video file, it is necessary to encode the file with frequent
 key frames. We've found setting the keyframe interval to the length of
 the sequences you will be reading provides a good compromise between
-filesize and loading performance. To set the keyframe interval to `X`
+filesize and loading performance. Also, NVVL's seeking logic doesn't
+support open GOPs in HEVC streams. To set the keyframe interval to `X`
 when using `ffmpeg`:
 
-- For `libx264` use `-g X -keyint_min X`
-- For `libx265` use `-x265-params "keyint=X:min-keyint=X"`
+- For `libx264` use `-g X`
+- For `libx265` use `-x265-params "keyint=X:no-open-gop=1"`
 
 The pixel format of the video must also be yuv420p to be supported by
 the hardware decoder. This is done by passing `-pix_fmt yuv420p` to
@@ -163,10 +164,9 @@ the hardware decoder. This is done by passing `-pix_fmt yuv420p` to
 the video file by passing `-map v:0` to ffmpeg after the input but
 before the output.
 
-For example:
-
+For example to transcode to H.264:
 ```
-ffmpeg -i original.mp4 -map v:0 -c:v libx264 -crf 18 -pix_fmt yuv420p -g 5 -keyint_min 5 -profile:v high prepared.mp4
+ffmpeg -i original.mp4 -map v:0 -c:v libx264 -crf 18 -pix_fmt yuv420p -g 5 -profile:v high prepared.mp4
 ```
 
 # Basic Usage
@@ -242,14 +242,15 @@ pixels.desc.horiz_flip = false;
 pixels.desc.normalized = true;
 pixels.desc.color_space = ColorSpace_RGB;
 pixels.desc.stride.x = 1;
-pixels.desc.stride.y = pitch;
-pixels.desc.stride.c = pitch * crop_height;
+pixels.desc.stride.y = pitch / sizeof(float);
+pixels.desc.stride.c = pixels.desc.stride.y * crop_height;
 pixels.desc.stride.n = pixels.desc.stride.c * 3;
 ```
 
 Note that here we have set the strides such that the dimensions are
 "nchw", we could have done "nhwc" or any other dimension order by
-setting the strides appropriately.
+setting the strides appropriately. Also note that the strides in the
+layer description are number of elements, not number of bytes.
 
 We now add this layer to our `PictureSequence`, and send it to the loader:
 
@@ -260,7 +261,7 @@ loader.receive_frames(seq);
 
 This call to `receive_frames` will be
 asynchronous. `receive_frames_sync` can be used if synchronous reading
-is desired. When we are ready to use the frames. We can insert a wait
+is desired. When we are ready to use the frames we can insert a wait
 event into the CUDA stream we are using for our computation:
 
 ```C++

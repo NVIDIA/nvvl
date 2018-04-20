@@ -326,7 +326,7 @@ void VideoLoader::impl::seek(OpenFile& file, int frame) {
     auto seek_time = av_rescale_q(frame,
                                   file.frame_base_,
                                   file.stream_base_);
-    // std::cout << "Seeking to frame " << frame << " timestamp " << seek_time << std::endl;
+    log_.debug() << "Seeking to frame " << frame << " timestamp " << seek_time << std::endl;
     // auto ret = avformat_seek_file(file.fmt_ctx_.get(), file.vid_stream_idx_,
     //                               INT64_MIN, seek_time, seek_time, 0);
 

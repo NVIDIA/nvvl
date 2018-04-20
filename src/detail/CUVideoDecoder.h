@@ -3,12 +3,16 @@
 #include "nvcuvid/nvcuvid.h"
 
 namespace NVVL {
+
+class Logger;
+
 namespace detail {
 
 class CUVideoDecoder {
   public:
     CUVideoDecoder();
-    CUVideoDecoder(CUvideodecoder);
+    CUVideoDecoder(Logger& log);
+    CUVideoDecoder(Logger& log, CUvideodecoder);
     ~CUVideoDecoder();
 
     // no copying
@@ -27,6 +31,7 @@ class CUVideoDecoder {
     uint16_t height() const;
 
   private:
+    Logger* log_;
     CUvideodecoder decoder_;
     CUVIDDECODECREATEINFO decoder_info_;
 

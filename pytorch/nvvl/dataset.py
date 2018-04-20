@@ -206,7 +206,11 @@ class VideoDataset(torch.utils.data.Dataset):
         self.start_index = []
         for f in filenames:
             count = lib.nvvl_frame_count(self.loader, str.encode(f));
-            count -= self.sequence_length + 1
+            if count < self.sequence_length:
+                print("NVVL WARNING: Ignoring", f, "because it only has", count,
+                      "frames and the sequence length is", self.sequence_length)
+                continue
+            count = count - self.sequence_length + 1
             self.frame_counts.append(count)
             self.total_frames += count
             self.start_index.append(self.total_frames) # purposefully off by one for bisect to work
