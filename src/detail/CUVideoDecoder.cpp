@@ -1,4 +1,5 @@
 #include "detail/CUVideoParser.h"
+#include "detail/Logger.h"
 #include "detail/NvDecoder.h"
 #include "detail/utils.h"
 
@@ -61,12 +62,16 @@ const char * GetVideoChromaFormatString(cudaVideoChromaFormat eChromaFormat) {
 
 }
 
-CUVideoDecoder::CUVideoDecoder() : decoder_{0}, decoder_info_{},
-                                   initialized_{false} {
+CUVideoDecoder::CUVideoDecoder() : log_{nullptr}, decoder_{0},
+                                   decoder_info_{}, initialized_{false} {
 }
 
-CUVideoDecoder::CUVideoDecoder(CUvideodecoder decoder)
-    : decoder_{decoder}, decoder_info_{}, initialized_{true} {
+CUVideoDecoder::CUVideoDecoder(Logger& log) : log_{&log}, decoder_{0}, decoder_info_{},
+                                              initialized_{false} {
+}
+
+CUVideoDecoder::CUVideoDecoder(Logger& log, CUvideodecoder decoder)
+    : log_{&log}, decoder_{decoder}, decoder_info_{}, initialized_{true} {
 }
 
 CUVideoDecoder::~CUVideoDecoder() {
@@ -76,7 +81,7 @@ CUVideoDecoder::~CUVideoDecoder() {
 }
 
 CUVideoDecoder::CUVideoDecoder(CUVideoDecoder&& other)
-    : decoder_{other.decoder_}, initialized_{other.initialized_} {
+    : log_{other.log_}, decoder_{other.decoder_}, initialized_{other.initialized_} {
     other.decoder_ = 0;
     other.initialized_ = false;
 }
@@ -85,6 +90,7 @@ CUVideoDecoder& CUVideoDecoder::operator=(CUVideoDecoder&& other) {
     if (initialized_) {
         cucall(cuvidDestroyDecoder(decoder_));
     }
+    log_ = other.log_;
     decoder_ = other.decoder_;
     initialized_ = other.initialized_;
     other.decoder_ = 0;
@@ -104,19 +110,17 @@ int CUVideoDecoder::initialize(CUVIDEOFORMAT* format) {
         return 1;
     }
 
-    auto verbose = false;
-
-    if (verbose) {
-        std::cout << "Hardware Decoder Input Information" << std::endl
-                  << "\tVideo codec     : " << GetVideoCodecString(format->codec) << std::endl
-                  << "\tFrame rate      : " << format->frame_rate.numerator << "/" << format->frame_rate.denominator
-                  << " = " << 1.0 * format->frame_rate.numerator / format->frame_rate.denominator << " fps" << std::endl
-                  << "\tSequence format : " << (format->progressive_sequence ? "Progressive" : "Interlaced") << std::endl
-                  << "\tCoded frame size: [" << format->coded_width << ", " << format->coded_height << "]" << std::endl
-                  << "\tDisplay area    : [" << format->display_area.left << ", " << format->display_area.top << ", "
-                  << format->display_area.right << ", " << format->display_area.bottom << "]" << std::endl
-                  << "\tChroma format   : " << GetVideoChromaFormatString(format->chroma_format) << std::endl
-                  << "\tBit depth       : " << format->bit_depth_luma_minus8 + 8 << std::endl;
+    if (log_) {
+        log_->info() << "Hardware Decoder Input Information" << std::endl
+                     << "\tVideo codec     : " << GetVideoCodecString(format->codec) << std::endl
+                     << "\tFrame rate      : " << format->frame_rate.numerator << "/" << format->frame_rate.denominator
+                     << " = " << 1.0 * format->frame_rate.numerator / format->frame_rate.denominator << " fps" << std::endl
+                     << "\tSequence format : " << (format->progressive_sequence ? "Progressive" : "Interlaced") << std::endl
+                     << "\tCoded frame size: [" << format->coded_width << ", " << format->coded_height << "]" << std::endl
+                     << "\tDisplay area    : [" << format->display_area.left << ", " << format->display_area.top << ", "
+                     << format->display_area.right << ", " << format->display_area.bottom << "]" << std::endl
+                     << "\tChroma format   : " << GetVideoChromaFormatString(format->chroma_format) << std::endl
+                     << "\tBit depth       : " << format->bit_depth_luma_minus8 + 8 << std::endl;
     }
 
     decoder_info_.CodecType = format->codec;
@@ -135,11 +139,10 @@ int CUVideoDecoder::initialize(CUVIDEOFORMAT* format) {
     area.right  = format->display_area.right;
     area.top    = format->display_area.top;
     area.bottom = format->display_area.bottom;
-    if (verbose) {
-        std::cout << "\tUsing full size : [" << area.left << ", " << area.top
-                  << "], [" << area.right << ", " << area.bottom << "]" << std::endl;
+    if (log_) {
+        log_->info() << "\tUsing full size : [" << area.left << ", " << area.top
+                     << "], [" << area.right << ", " << area.bottom << "]" << std::endl;
     }
-
     decoder_info_.ulNumOutputSurfaces = 2;
     decoder_info_.ulCreationFlags = cudaVideoCreate_PreferCUVID;
     decoder_info_.vidLock = nullptr;
@@ -147,7 +150,7 @@ int CUVideoDecoder::initialize(CUVIDEOFORMAT* format) {
     if (cucall(cuvidCreateDecoder(&decoder_, &decoder_info_))) {
         initialized_ = true;
     } else {
-        std::cerr << "Problem creating video decoder" << std::endl;
+        throw std::runtime_error("Problem creating video decoder");
     }
     return 1;
 }

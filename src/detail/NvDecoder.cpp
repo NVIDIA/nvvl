@@ -33,7 +33,7 @@ NvDecoder::NvDecoder(int device_id,
                      const CodecParameters* codecpar,
                      AVRational time_base)
     : Decoder{device_id, logger, codecpar},
-      device_{}, context_{}, parser_{}, decoder_{},
+      device_{}, context_{}, parser_{}, decoder_{logger},
       time_base_{time_base.num, time_base.den},
       frame_in_use_(32), // 32 is cuvid's max number of decode surfaces
       recv_queue_{}, frame_queue_{}, output_queue_{},
