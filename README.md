@@ -242,14 +242,15 @@ pixels.desc.horiz_flip = false;
 pixels.desc.normalized = true;
 pixels.desc.color_space = ColorSpace_RGB;
 pixels.desc.stride.x = 1;
-pixels.desc.stride.y = pitch;
-pixels.desc.stride.c = pitch * crop_height;
+pixels.desc.stride.y = pitch / sizeof(float);
+pixels.desc.stride.c = pixels.desc.stride.y * crop_height;
 pixels.desc.stride.n = pixels.desc.stride.c * 3;
 ```
 
 Note that here we have set the strides such that the dimensions are
 "nchw", we could have done "nhwc" or any other dimension order by
-setting the strides appropriately.
+setting the strides appropriately. Also note that the strides in the
+layer description are number of elements, not number of bytes.
 
 We now add this layer to our `PictureSequence`, and send it to the loader:
 
@@ -260,7 +261,7 @@ loader.receive_frames(seq);
 
 This call to `receive_frames` will be
 asynchronous. `receive_frames_sync` can be used if synchronous reading
-is desired. When we are ready to use the frames. We can insert a wait
+is desired. When we are ready to use the frames we can insert a wait
 event into the CUDA stream we are using for our computation:
 
 ```C++
