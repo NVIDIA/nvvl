@@ -17,13 +17,13 @@ parser.add_argument('--sleep', type=float, required=True,
         help='dummy computation time')
 parser.add_argument('--loader', type=str, required=True,
         help='dataloader: pytorch/NVVL/lintel')
-parser.add_argument('--batchsize', type=int, default=128,
+parser.add_argument('--batchsize', type=int, default=8,
         help='batch size loaded')
 parser.add_argument('--frames', type=int, default=3,
         help='number of frames in each loaded sequence')
 parser.add_argument('--is_cropped', action='store_true',
         help='crop input frames?')
-parser.add_argument('--crop_size', type=int, nargs='+', default=[256, 256],
+parser.add_argument('--crop_size', type=int, nargs='+', default=[-1, -1],
         help='[height, width] for input crop')
 parser.add_argument('--fp16', action='store_true',
         help='load data in fp16?')
@@ -48,7 +48,9 @@ def main(args):
         for i,x in enumerate(loader, 1):
 
             if args.loader != 'NVVL':
-                x = x.cuda(non_blocking=True)
+                x = x.cuda()
+                if args.fp16:
+                    x = x.half()
 
             if epoch > 0:
                 counter += 1

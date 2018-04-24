@@ -40,6 +40,7 @@ class lintelDataset():
         image_shape = nvvl.video_size_from_file(self.files[0])
         self.image_shape = [image_shape.height, image_shape.width]
         self.frame_size = frame_size
+        print("Video size: ", self.image_shape[0], "x", self.image_shape[1], "\n")
         if self.is_cropped:
             self.frame_size = self.crop_size
         else:
@@ -75,7 +76,6 @@ class lintelDataset():
 
         assert self.total_frames >= 1, "[Error] Not enough frames at \n\t%s" % self.root
 
-        print("Video size: ", self.frame_size[0], "x", self.frame_size[1], "\n")
         self.frame_buffer = np.zeros((3, self.frames,
                                       self.frame_size[0], self.frame_size[1]),
                                       dtype = np.float32)
@@ -132,6 +132,8 @@ class imageDataset():
         self.crop_size = crop_size
 
         self.files = glob(os.path.join(self.root, '*/*.png'))
+        if len(self.files) < 1:
+            self.files = glob(os.path.join(self.root, '*/*.jpg'))
 
         if len(self.files) < 1:
             print(("[Error] No image files in %s" % (self.root)))
@@ -154,14 +156,13 @@ class imageDataset():
         self.total_frames -= (self.frames + 1)
         self.start_index.append(i)
 
+        self.image_shape = list(io.imread(self.files[0]).shape[:2])
+        print("Image size: ", self.image_shape[0], "x", self.image_shape[1], "\n")
         if self.is_cropped:
             self.image_shape = self.crop_size
-        else:
-            self.image_shape = list(io.imread(self.files[0]).shape[:2])
 
         self.frame_size = self.image_shape
 
-        print("Image size: ", self.frame_size[0], "x", self.frame_size[1], "\n")
         self.frame_buffer = np.zeros((3, self.frames,
                                       self.frame_size[0], self.frame_size[1]),
                                       dtype = np.float32)
