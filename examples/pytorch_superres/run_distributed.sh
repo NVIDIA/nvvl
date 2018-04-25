@@ -4,11 +4,14 @@
 # TRAINING CONFIG #
 ###################
 
-export DATA_DIR=/raid
+export DATA_DIR=/path/to/data/dir
 export RESOLUTION=540p  # options: 540p, 720p, 1080p, 4K
 export LOADER="NVVL"  # options: "NVVL" or "pytorch"
 export DATA_TYPE=scenes # options: "scenes" or "frames"
-export ROOT=$DATA_DIR/$RESOLUTION/$DATA_TYPE
+#export CODEC="h264"  #
+#export CRF="18"      # set these three only if used during preprocessing
+#export KEYINT="4"    #
+export ROOT=$DATA_DIR/$RESOLUTION/$DATA_TYPE/$CODEC/${CRF+crf$CRF}/${KEYINT+keyint$KEYINT}/
 #export IS_CROPPED="--is_cropped"  # Uncomment to crop input images
 export CROP_SIZE="-1 -1"
 #export CROP_SIZE="540 960"  # Only applicable if --is_cropped uncommented
@@ -24,7 +27,7 @@ export BASE_RANK=0  # Device ID of first GPU (assumes GPUs numbered sequentially
 
 export IP=localhost
 
-tensorboard --logdir runs 2> null &
+tensorboard --logdir runs 2> /dev/null &
 echo "Tensorboard launched"
 
 # Launch one PyTorch distributed process per GPU
