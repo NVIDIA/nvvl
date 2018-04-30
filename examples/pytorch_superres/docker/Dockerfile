@@ -46,6 +46,7 @@ RUN apt-get install -y yasm wget && \
       --enable-ffprobe \
       --cc="gcc -fPIC" && \
     make -j8 && make install && \
+    ldconfig && \
     cd /tmp && rm -rf ffmpeg-$FFMPEG_VERSION && \
     apt-get remove -y yasm
 

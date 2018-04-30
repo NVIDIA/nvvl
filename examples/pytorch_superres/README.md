@@ -120,7 +120,7 @@ python ./tools/transcode_scenes.py --master_data <data_dir> --resolution <resolu
 ```
 
 where `<resolution>` can be one of: '4K', `1080p`, `720p` or `540p`.  The transcoded scenes will be written to `<data_dir>/<resolution>/scenes` and split into
-training and validation folders. Note that while you can split and transcode the original video in one step, we found it to be much faster to split first, then transcode.
+training and validation folders. Run the script with `--help` to see more options. Note that while you can split and transcode the original video in one step, we found it to be much faster to split first, then transcode.
 
 3. Extract .png frames from scene .mp4 files:
 

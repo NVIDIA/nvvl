@@ -1,3 +1,5 @@
+Unless otherwise stated, all files are released under the following license:
+
 * Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -23,3 +25,10 @@
 * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+Files from the Boost library are under their own
+license found in src/boost/LICENSE_1_0.txt.
+
+Header files from the NVIDIA Video Codec SDK in src/nvidia are also
+under their own license which is contained at the top of each header.
