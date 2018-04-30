@@ -62,7 +62,7 @@ RUN pip install --upgrade cmake && \
 
 RUN pip install scikit-image psutil
 
-RUN git clone https://github.com/dukebw/lintel.git /workspace/lintel
-
-RUN cd /workspace/lintel && \
-pip install .
+RUN git clone https://github.com/dukebw/lintel.git /workspace/lintel && \
+    cd /workspace/lintel && \
+    pip install . && \
+    rm -rf /workspace/lintel
