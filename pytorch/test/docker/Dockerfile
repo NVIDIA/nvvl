@@ -21,20 +21,22 @@ RUN apt-get install -y \
     --prefix=/usr/local \
     --disable-static --enable-shared \
     --disable-all --disable-autodetect --disable-iconv \
-    --enable-avformat --enable-avcodec --enable-avfilter \
+    --enable-avformat --enable-avcodec --enable-avfilter --enable-avdevice \
     --enable-protocol=file \
     --enable-demuxer=mov,matroska,image2 \
     --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb \
     --enable-gpl --enable-libx264 --enable-libx265 --enable-zlib \
+    --enable-indev=lavfi \
     --enable-swresample --enable-ffmpeg \
-    --enable-swscale --enable-filter=scale \
+    --enable-swscale --enable-filter=scale,testsrc \
     --enable-muxer=mp4,matroska,image2 \
     --enable-cuvid --enable-nvenc --enable-cuda \
-    --enable-decoder=h264,h264_cuvid,hevc,hevc_cuvid,png \
-    --enable-encoder=h264_nvenc,hevc_nvenc,libx264,libx265,png \
+    --enable-decoder=h264,h264_cuvid,hevc,hevc_cuvid,png,mjpeg,rawvideo \
+    --enable-encoder=h264_nvenc,hevc_nvenc,libx264,libx265,png,mjpeg \
     --enable-hwaccel=h264_cuvid,hevc_cuvid \
     --enable-parser=h264,hevc,png && \
     make -j8 && make install && \
+    ldconfig && \
     cd /tmp && rm -rf ffmpeg-$FFMPEG_VERSION && \
     apt-get remove -y yasm libx264-dev libx265-dev && \
     apt-get auto-remove -y
