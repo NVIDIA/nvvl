@@ -58,7 +58,7 @@ RUN pip install --upgrade cmake && \
     apt-get remove -y pkg-config && \
     apt-get autoremove -y
 
-RUN pip install scikit-image tensorflow tensorboard tensorboardX psutil
+RUN pip install scikit-image psutil
 
 RUN git clone https://github.com/dukebw/lintel.git /workspace/lintel
 
