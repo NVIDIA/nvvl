@@ -58,6 +58,9 @@ RUN pip install --upgrade cmake && \
     apt-get remove -y pkg-config && \
     apt-get autoremove -y
 
-RUN pip install scikit-image tensorflow tensorboard tensorboardX
+RUN pip install scikit-image tensorflow tensorboard tensorboardX psutil
 
-WORKDIR /workspace/examples/pytorch_superres
+RUN git clone https://github.com/dukebw/lintel.git /workspace/lintel
+
+RUN cd /workspace/lintel && \
+pip install .
