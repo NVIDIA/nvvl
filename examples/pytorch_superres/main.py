@@ -173,7 +173,7 @@ def main(args):
             log.info('Rank %d, Epoch %d, Iteration %d of %d, loss %.5f' %
                     (dist.get_rank(), epoch, i+1, train_batches, loss.item()))
 
-            total_iter += 1
+        total_iter += 1
 
         if args.rank == 0:
             if args.timing:
