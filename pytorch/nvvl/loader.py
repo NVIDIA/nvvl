@@ -78,10 +78,12 @@ class VideoLoader(object):
     def _receive_batch(self):
         batch_size = self.batch_size_queue.popleft()
         t = self.dataset._create_tensor_map(batch_size)
+        labels = []
         for i in range(batch_size):
-            self.dataset._start_receive(t, i)
+            _, label = self.dataset._start_receive(t, i)
+            labels.append(label)
 
-        self.tensor_queue.append((batch_size, t))
+        self.tensor_queue.append((batch_size, t, labels))
 
     def get_stats(self):
         return self.dataset.get_stats()
@@ -101,11 +103,11 @@ class VideoLoader(object):
         if self.batch_size_queue:
             self._receive_batch()
 
-        batch_size, t = self.tensor_queue.popleft()
+        batch_size, t, labels = self.tensor_queue.popleft()
         for i in range(batch_size):
             self.dataset._finish_receive()
 
-        return t
+        return t, labels
 
     def __iter__(self):
         if self.dataset.samples_left != 0:

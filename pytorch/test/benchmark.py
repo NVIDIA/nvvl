@@ -45,7 +45,7 @@ def main(args):
 
         start = time.time()
 
-        for i,x in enumerate(loader, 1):
+        for i,(x, y) in enumerate(loader, 1):
 
             if args.loader != 'NVVL':
                 x = x.cuda()

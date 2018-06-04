@@ -167,6 +167,13 @@ class VideoDataset(torch.utils.data.Dataset):
     device_id : int, optional
         GPU device to use (Default: 0)
 
+    get_label : callable, optional
+        callable with signature:
+            (filename : str, frame_num : int) : anything
+        The returned value is simply passed as an output
+        alongside any returned frames.
+        If None, label returned is None. (Default: None)
+
     processing : dict {string -> ProcessDesc}, optional
         Describes processing to be done on the sequence to generate
         each data item. If None, each frame in the sequence will be
@@ -177,11 +184,12 @@ class VideoDataset(torch.utils.data.Dataset):
         (Default: "warn")
     """
     def __init__(self, filenames, sequence_length, device_id=0,
-                 processing = None, log_level = "warn"):
+                 get_label=None, processing = None, log_level = "warn"):
         self.ffi = lib._ffi
         self.filenames = filenames
         self.sequence_length = sequence_length
         self.device_id = device_id
+        self.get_label = get_label if get_label is not None else lambda x,y: None
 
         self.processing = processing
         if self.processing is None:
@@ -232,6 +240,7 @@ class VideoDataset(torch.utils.data.Dataset):
         self.samples_left = 0
 
         self.seq_queue = collections.deque()
+        self.seq_info_queue = collections.deque()
 
         self.get_count = 0
         self.get_count_warning_threshold = 1000
@@ -257,10 +266,11 @@ class VideoDataset(torch.utils.data.Dataset):
         # we want bisect_right here so the first frame in a file gets the file, not the previous file
         file_index = bisect.bisect_right(self.start_index, index)
         frame = index - self.start_index[file_index - 1] if file_index > 0 else index
+        filename = self.filenames[file_index]
 
-        lib.nvvl_read_sequence(self.loader,
-                               str.encode(self.filenames[file_index]),
+        lib.nvvl_read_sequence(self.loader, str.encode(filename),
                                frame, self.sequence_length)
+        self.seq_info_queue.append((filename, frame))
         self.samples_left += 1
 
     def _get_layer_desc(self, desc):
@@ -313,9 +323,10 @@ class VideoDataset(torch.utils.data.Dataset):
             layer.data = self.ffi.cast("void*", tensor[index].data_ptr())
             lib.nvvl_set_layer(seq, layer, str.encode(name))
 
+        filename, frame = self.seq_info_queue.popleft()
         self.seq_queue.append(seq)
         lib.nvvl_receive_frames(self.loader, seq)
-        return seq
+        return seq, self.get_label(filename, frame)
 
     def _finish_receive(self, synchronous=False):
         if not self.seq_queue:
@@ -355,12 +366,12 @@ class VideoDataset(torch.utils.data.Dataset):
 
         self._read_sample(index)
         tensor_map = self._create_tensor_map()
-        seq = self._start_receive(tensor_map)
+        seq, label = self._start_receive(tensor_map)
         self._finish_receive(True)
 
         if len(tensor_map) == 1 and "default" in tensor_map:
-            return tensor_map["default"][0].cpu()
-        return {name: tensor[0].cpu() for name, tensor in tensor_map.items()}
+            return tensor_map["default"][0].cpu(), label
+        return {name: tensor[0].cpu() for name, tensor in tensor_map.items()}, label
 
     def __len__(self):
         return self.total_frames
