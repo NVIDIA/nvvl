@@ -105,7 +105,7 @@ class ProcessDesc(object):
         elif type == "half":
             self.tensor_type = torch.cuda.HalfTensor
         elif type == "byte":
-            self.tensor_type = torch.cuda.Bytetensor
+            self.tensor_type = torch.cuda.ByteTensor
         else:
             raise ValueError("Unknown type")
 
