@@ -20,11 +20,21 @@ class Decoder;
 
 class CudaEvent {
   public:
-    CudaEvent() : CudaEvent(cudaEventDisableTiming) {
+    CudaEvent(int device_id) : CudaEvent(device_id, cudaEventDisableTiming) {
     }
 
-    CudaEvent(unsigned int flags) : valid_{false}, flags_{flags} {
+    CudaEvent(int device_id, unsigned int flags) : valid_{false}, flags_{flags} {
+        int orig_device;
+        cudaGetDevice(&orig_device);
+        auto set_device = false;
+        if (device_id >= 0 && orig_device != device_id) {
+            set_device = true;
+            cucall(cudaSetDevice(device_id));
+        }
         valid_ = cucall(cudaEventCreateWithFlags(&event_, flags));
+        if (set_device) {
+            cucall(cudaSetDevice(orig_device));
+        }
     }
 
     ~CudaEvent() {
@@ -95,7 +105,7 @@ using PMTypes = mp_transform<mp_second, PMTMap>;
 class PictureSequence::impl {
   public:
 
-    impl(uint16_t count);
+    impl(uint16_t count, int device_id);
 
     template<typename T>
     void set_layer(std::string name, const Layer<T>& layer) {

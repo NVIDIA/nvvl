@@ -284,7 +284,7 @@ class VideoDataset(torch.utils.data.Dataset):
         return d
 
     def _start_receive(self, tensor_map, index=0):
-        seq = lib.nvvl_create_sequence(self.sequence_length)
+        seq = lib.nvvl_create_sequence_device(self.sequence_length, self.device_id)
 
         for name, desc in self.processing.items():
             tensor = tensor_map[name]
