@@ -130,7 +130,7 @@ def main(args):
         iter_start = time.perf_counter()
 
         # TRAINING EPOCH LOOP
-        for i, (inputs, labels) in enumerate(train_loader):
+        for i, inputs in enumerate(train_loader):
 
             if args.loader == 'NVVL':
                 inputs = inputs['input']

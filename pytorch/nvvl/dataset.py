@@ -184,7 +184,7 @@ class VideoDataset(torch.utils.data.Dataset):
         (Default: "warn")
     """
     def __init__(self, filenames, sequence_length, device_id=0,
-                 get_label=None, processing = None, log_level = "warn"):
+                 get_label=None, processing=None, log_level="warn"):
         self.ffi = lib._ffi
         self.filenames = filenames
         self.sequence_length = sequence_length
@@ -194,6 +194,8 @@ class VideoDataset(torch.utils.data.Dataset):
         self.processing = processing
         if self.processing is None:
             self.processing = {"default" : ProcessDesc()}
+        elif "labels" in processing and get_label is not None:
+            raise KeyError("Processing must not have a 'labels' key when get_label is not None.")
 
         try:
             log_level = log_levels[log_level]
@@ -369,9 +371,14 @@ class VideoDataset(torch.utils.data.Dataset):
         seq, label = self._start_receive(tensor_map)
         self._finish_receive(True)
 
-        if len(tensor_map) == 1 and "default" in tensor_map:
-            return tensor_map["default"][0].cpu(), label
-        return {name: tensor[0].cpu() for name, tensor in tensor_map.items()}, label
+        tensor_map_cpu = {name: tensor[0].cpu() for name, tensor in tensor_map.items()}
+
+        if label is not None:
+            tensor_map_cpu['labels'] = label
+
+        if len(tensor_map_cpu) == 1 and "default" in tensor_map_cpu:
+            return tensor_map_cpu["default"][0].cpu()
+        return tensor_map_cpu
 
     def __len__(self):
         return self.total_frames

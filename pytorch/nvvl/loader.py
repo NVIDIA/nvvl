@@ -107,7 +107,10 @@ class VideoLoader(object):
         for i in range(batch_size):
             self.dataset._finish_receive()
 
-        return t, labels
+        if any(label is not None for label in labels):
+            t["labels"] = labels
+
+        return t
 
     def __iter__(self):
         if self.dataset.samples_left != 0:
