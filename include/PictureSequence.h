@@ -241,8 +241,17 @@ enum NVVL_PicMetaType {
 
 /**
  * Wrapper for PictureSequence::PictureSequence
+ *
+ * Creates the sequence on the current device
  */
 PictureSequenceHandle nvvl_create_sequence(uint16_t count);
+
+/**
+ * Wrapper for PictureSequence::PictureSequence
+ *
+ * Creates the sequence on the given device
+ */
+PictureSequenceHandle nvvl_create_sequence_device(uint16_t count, int device_id);
 
 /**
  * Wrapper for PictureSequence::SetLayer()
@@ -341,7 +350,7 @@ using LayerDesc = NVVL_LayerDesc;
 
 class PictureSequence {
   public:
-    /** Create an empty PictureSequence.
+    /** Create an empty PictureSequence on the current device.
      *
      * \param count The number of frames to receive from the
      * decoder. Not all of the frames received from the decoder need
@@ -349,6 +358,19 @@ class PictureSequence {
      * count.
      */
     PictureSequence(uint16_t count);
+
+    /** Create an empty PictureSequence on the given device.
+     *
+     * \param count The number of frames to receive from the
+     * decoder. Not all of the frames received from the decoder need
+     * to be used in any layer, so some layers may have a different
+     * count.
+     *
+     * \param device_id device associated with the sequence.  This
+     * must be the same device that the data in the layers is
+     * allocated on and that the VideoLoader is associated with.
+     */
+    PictureSequence(uint16_t count, int device_id);
 
     /**
      * A full description of a layer

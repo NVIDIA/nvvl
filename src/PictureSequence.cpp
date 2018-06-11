@@ -4,11 +4,15 @@
 namespace NVVL {
 
 PictureSequence::PictureSequence(uint16_t count)
-    : pImpl{std::make_unique<impl>(count)}
+    : PictureSequence(count, -1)
 {}
 
-PictureSequence::impl::impl(uint16_t count)
-    : layers_{}, meta_{}, started_{false}, event_{}, count_{count}
+PictureSequence::PictureSequence(uint16_t count, int device_id)
+    : pImpl{std::make_unique<impl>(count, device_id)}
+{}
+
+PictureSequence::impl::impl(uint16_t count, int device_id)
+    : layers_{}, meta_{}, started_{false}, event_{device_id}, count_{count}
 {}
 
 PictureSequence::~PictureSequence() = default;
@@ -151,6 +155,11 @@ using PictureSequence = NVVL::PictureSequence;
 
 PictureSequenceHandle nvvl_create_sequence(uint16_t count) {
     auto ps = new PictureSequence{count};
+    return reinterpret_cast<PictureSequenceHandle>(ps);
+}
+
+PictureSequenceHandle nvvl_create_sequence_device(uint16_t count, int device_id) {
+    auto ps = new PictureSequence{count, device_id};
     return reinterpret_cast<PictureSequenceHandle>(ps);
 }
 

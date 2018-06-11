@@ -9,10 +9,20 @@ namespace detail {
 
 Logger default_log;
 
-CUStream::CUStream(bool default_stream) : created_{false}, stream_{0} {
+CUStream::CUStream(int device_id, bool default_stream) : created_{false}, stream_{0} {
     if (!default_stream) {
+        int orig_device;
+        cudaGetDevice(&orig_device);
+        auto set_device = false;
+        if (device_id >= 0 && orig_device != device_id) {
+            set_device = true;
+            cudaSetDevice(device_id);
+        }
         cucall(cudaStreamCreate(&stream_));
         created_ = true;
+        if (set_device) {
+            cucall(cudaSetDevice(orig_device));
+        }
     }
 }
 
@@ -42,13 +52,13 @@ CUStream::operator cudaStream_t() {
     return stream_;
 }
 
-Decoder::Decoder() : device_id_{0}, stream_{true}, codecpar_{}, log_{default_log}
+Decoder::Decoder() : device_id_{-1}, stream_{-1, true}, codecpar_{}, log_{default_log}
 {
 }
 
 Decoder::Decoder(int device_id, Logger& logger,
                  const CodecParameters* codecpar)
-    : device_id_{device_id}, stream_{false}, codecpar_{codecpar}, log_{logger}
+    : device_id_{device_id}, stream_{device_id, false}, codecpar_{codecpar}, log_{logger}
 {
 }
 
@@ -83,7 +93,7 @@ void Decoder::finish() {
 }
 
 void Decoder::use_default_stream() {
-    stream_ = CUStream{true};
+    stream_ = CUStream{device_id_, true};
 }
 
 // This has to be here since Decoder is the only friend of PictureSequence
