@@ -130,7 +130,7 @@ def get_loader(args):
             shuffle=True,
             distributed=True,
             device_id=args.rank % 8,
-            fp16=args.fp16)
+            fp16=args.amp)
 
         train_batches = len(train_loader)
 
@@ -143,7 +143,7 @@ def get_loader(args):
             shuffle=True,
             distributed=True,
             device_id=args.rank % 8,
-            fp16=args.fp16)
+            fp16=args.amp)
 
         val_batches = len(val_loader)
 

@@ -18,10 +18,11 @@ from dataloading.dataloaders import get_loader
 from model.model import VSRNet
 from model.clr import cyclic_learning_rate
 
-from nvidia.fp16 import FP16_Optimizer
-from nvidia.fp16util import network_to_half
-from nvidia.distributed import DistributedDataParallel
-
+from apex import amp
+try:
+    from apex.parallel import DistributedDataParallel as DDP
+except ImportError:
+    raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -39,15 +40,17 @@ parser.add_argument('--batchsize', type=int, default=1,
 parser.add_argument('--loader', type=str, default='NVVL',
                     help='dataloader: pytorch or NVVL')
 parser.add_argument('--rank', type=int, default=0,
-                    help='pytorch distributed rank')
-parser.add_argument('--world_size', default=2, type=int, metavar='N',
-                    help='num processes for pytorch distributed')
-parser.add_argument('--ip', default='localhost', type=str,
-                    help='IP address for distributed init.')
+                    help='used for multi-process training. Can either be ' +
+                    'or automatically set by uing \'python -m multiproc\'.')
+parser.add_argument('--world-size', default=1, type=int,
+                    help='number of GPUS to use. Can either be manually set ' +
+                    'or automatically set by using \'python -m multiproc\'.')
+parser.add_argument('--dist-url', default='tcp://localhost:3567', type=str,
+                    help='url for distributed init.')
+parser.add_argument('--dist-backend', default='nccl', type=str,
+                    help='distributed backend')
 parser.add_argument('--max_iter', type=int, default=1000,
                     help='num training iters')
-parser.add_argument('--fp16', action='store_true',
-                    help='train in fp16?')
 parser.add_argument('--checkpoint_dir', type=str, default='.',
                     help='where to save checkpoints')
 parser.add_argument('--min_lr', type=float, default=0.000001,
@@ -63,6 +66,8 @@ parser.add_argument('--image_freq', type=int, default=100,
                     help='num iterations between image dumps to Tensorboard ')
 parser.add_argument('--timing', action='store_true',
                     help="Time data loading and model training (default: False)")
+parser.add_argument('--amp', action='store_true',
+                    help="Enable amp for automatic mixed precision training")
 
 def main(args):
 
@@ -74,15 +79,15 @@ def main(args):
         log.basicConfig(level=log.WARNING)
         writer = None
 
-    torch.cuda.set_device(args.rank % args.world_size)
+    torch.cuda.set_device(args.rank % torch.cuda.device_count())
     torch.manual_seed(args.seed + args.rank)
     torch.cuda.manual_seed(args.seed + args.rank)
     torch.backends.cudnn.benchmark = True
 
     log.info('Initializing process group')
     dist.init_process_group(
-        backend='nccl',
-        init_method='tcp://' + args.ip + ':3567',
+        backend=args.dist_backend,
+        init_method=args.dist_url,
         world_size=args.world_size,
         rank=args.rank)
     log.info('Process group initialized')
@@ -92,9 +97,8 @@ def main(args):
     samples_per_epoch = train_batches * args.batchsize
     log.info('Dataloader initialized')
 
-    model = VSRNet(args.frames, args.flownet_path, args.fp16)
-    if args.fp16:
-        network_to_half(model)
+    amp_handle = amp.init(enabled=args.amp)
+    model = VSRNet(args.frames, args.flownet_path, args.amp)
     model.cuda()
     model.train()
     for param in model.FlowNetSD_network.parameters():
@@ -107,10 +111,8 @@ def main(args):
     stepsize = 2 * train_batches
     clr_lambda = cyclic_learning_rate(args.min_lr, args.max_lr, stepsize)
     scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=[clr_lambda])
-    if args.fp16:
-        optimizer = FP16_Optimizer(optimizer, dynamic_loss_scale=True)
 
-    model = DistributedDataParallel(model)
+    model = DDP(model, shared_param=True)
 
     # BEGIN TRAINING
     total_iter = 0
@@ -136,8 +138,6 @@ def main(args):
                 inputs = inputs['input']
             else:
                 inputs = inputs.cuda(non_blocking=True)
-                if args.fp16:
-                    inputs = inputs.half()
 
             if args.timing:
                 torch.cuda.synchronize()
@@ -150,8 +150,9 @@ def main(args):
 
             total_epoch_loss += loss.item()
 
-            if args.fp16:
-                optimizer.backward(loss)
+            if args.amp:
+                with amp_handle.scale_loss(loss, optimizer) as scaled_loss:
+                    scaled_loss.backward()
             else:
                 loss.backward()
 
@@ -196,8 +197,6 @@ def main(args):
                 inputs = inputs['input']
             else:
                 inputs = inputs.cuda(non_blocking=True)
-                if args.fp16:
-                    inputs = inputs.half()
 
             log.info('Validation it %d of %d' % (i + 1, val_batches))
             loss, psnr = model(Variable(inputs), i, None)

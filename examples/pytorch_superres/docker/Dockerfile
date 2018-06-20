@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/pytorch:18.03-py3
+FROM nvcr.io/nvidia/pytorch:18.05-py3
 
 ARG FFMPEG_VERSION=3.4.2
 
@@ -61,5 +61,8 @@ RUN pip install --upgrade cmake && \
     apt-get autoremove -y
 
 RUN pip install scikit-image tensorflow tensorboard tensorboardX
+
+RUN cd /workspace && git clone https://github.com/NVIDIA/apex
+RUN cd /workspace/apex && python3 setup.py install
 
 WORKDIR /workspace/examples/pytorch_superres
