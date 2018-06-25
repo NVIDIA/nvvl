@@ -381,7 +381,9 @@ void VideoLoader::impl::read_file() {
         seek(file, req.frame);
 
         auto nonkey_frame_count = 0;
-        while (req.count > 0 && av_read_frame(file.fmt_ctx_.get(), &raw_pkt) >= 0) {
+        bool got_frame[req.count] = {false};
+        auto frames_left = req.count;
+        while (frames_left > 0 && av_read_frame(file.fmt_ctx_.get(), &raw_pkt) >= 0) {
             auto pkt = pkt_ptr(&raw_pkt, av_packet_unref);
 
             stats_.bytes_read += pkt->size;
@@ -424,22 +426,20 @@ void VideoLoader::impl::read_file() {
                         continue;
                     } else {
                         req.frame += nonkey_frame_count + 1;
-                        req.count -= nonkey_frame_count + 1;
                         nonkey_frame_count = 0;
                     }
                     final_try = false;
                 } else {
                     nonkey_frame_count++;
-                    // A hueristic so we don't go way over... what should "20" be?
-                    if (frame > req.frame + req.count + 20) {
-                        // This should end the loop
-                        req.frame += nonkey_frame_count;
-                        req.count -= nonkey_frame_count;
-                        nonkey_frame_count = 0;
-                    }
                 }
             }
             seek_hack = 1;
+
+            auto idx = frame-req.frame;
+            if (idx >= 0 && idx < req.count && !got_frame[idx]) {
+                got_frame[idx] = true;
+                frames_left--;
+            }
 
             log_.info() << device_id_ << ": Sending " << (key ? "  key " : "nonkey")
                         << " frame " << frame << " to the decoder."
