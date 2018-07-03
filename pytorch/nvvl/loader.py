@@ -37,10 +37,13 @@ class VideoLoader(object):
         drop the last incomplete batch. It is currently not
         implemented to have this set to False. (Default: True)
 
+    buffer_length : int, optional
+        number of batches to preload (Default: 3)
+
     """
     def __init__(self, dataset, batch_size=1, shuffle=False,
                  distributed=False, sampler=None,
-                 batch_sampler=None, drop_last=True):
+                 batch_sampler=None, drop_last=True, buffer_length=3):
         self.dataset = dataset
         self.batch_size = batch_size
         self.drop_last = drop_last
@@ -73,7 +76,7 @@ class VideoLoader(object):
 
         self.tensor_queue = collections.deque()
         self.batch_size_queue = collections.deque()
-        self.buffer_length = 3
+        self.buffer_length = buffer_length
 
     def _receive_batch(self):
         batch_size = self.batch_size_queue.popleft()
