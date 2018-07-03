@@ -18,7 +18,7 @@ class ProcessDesc(object):
         (Default: "float")
 
     width, height : int, optional
-        width and height to crop frame to, set to 0 for full frame
+        width and height to crop frame to, set to 0 for scaled frame
         size (Default: 0)
 
     scale_width, scale_height : int, optional
