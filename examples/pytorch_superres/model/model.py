@@ -204,15 +204,15 @@ class VSRNet(nn.Module):
 
         # Loss must be computed for pixel values in [0, 255] to prevent
         # divergence in fp16
-        prediction = torch.nn.functional.sigmoid(self.conv3(conv2_out))
+        prediction = torch.nn.functional.sigmoid(self.conv3(conv2_out).float())
 
         loss = torch.nn.functional.mse_loss(prediction.float(), target.float())
 
         if not self.training:
             # Following [1], remove 12 pixels around border to prevent
             # convolution edge effects affecting PSNR
-            psnr_metric = psnr(prediction[:, :, :12, -12:].float() * 255,
-                               target[:, :, :12, -12:].float() * 255)
+            psnr_metric = psnr(prediction[:, :, 12:, :-12].float() * 255,
+                               target[:, :, 12:, :-12].float() * 255)
 
         prediction = ycbcr2rgb(torch.cat((prediction * 255, cb[:, :, self.mi, :, :],
                                cr[:, :, self.mi, :, :]), 1)) / 255
