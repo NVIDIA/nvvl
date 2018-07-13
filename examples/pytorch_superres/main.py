@@ -1,3 +1,4 @@
+import pickle
 import argparse
 import logging as log
 import os
@@ -158,40 +159,8 @@ def main(args):
                 with amp_handle.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
                     # after backward()
-                    if total_iter == 1600:
-                        import pickle
-                        for n, p in model.named_parameters():
-                            f = open('/raid/checkpoints/grads/' + str(epoch) + '_' + n + '.grad', 'wb')
-                            pickle.dump(p.grad, f)
-                    if args.rank == 0 and scaled_loss.float()/loss.float() < 2:
-                        for name, param in model.named_parameters():
-                            if param.grad is None:
-                                continue
-                            if torch.isnan(param.grad).any():
-                                for n, p in model.named_parameters():
-                                    f = open('/raid/checkpoints/grads/' + str(epoch) + '_' + n + '.grad', 'wb')
-                                    pickle.dump(p.grad, f)
-                                print('NAN!!!!!!!!!!!!')
-                                print(name)
-                                import pdb; pdb.set_trace()
-                            # things to look at:
-                            #print(param.grad.norm())
-                            #print(torch.isnan(param.grad).any())
-                            #print(torch.max(param.grad.abs()))
             else:
                 loss.backward()
-                if args.rank == 0:
-                    for name, param in model.named_parameters():
-                        if param.grad is None:
-                            continue
-                        if torch.isnan(param.grad).any():
-                            print('NAN!!!!!!!!!!!!')
-                            print(name)
-                            import pdb; pdb.set_trace()
-                        # things to look at:
-                        #print(param.grad.norm())
-                        #print(torch.isnan(param.grad).any())
-                            #print(torch.max(param.grad.abs()))
 
             optimizer.step()
             scheduler.step()
@@ -228,6 +197,18 @@ def main(args):
             log.info('Rank %d, epoch %d: %.5f' % (dist.get_rank(), epoch, epoch_loss_avg))
 
             torch.save(model.state_dict(), os.path.join(args.checkpoint_dir, args.job_name, 'weights_' + str(epoch) + '.pth'))
+
+            if args.rank == 0:
+                for name, param in model.named_parameters():
+                    if param.grad is None:
+                        continue
+                    for n, p in model.named_parameters():
+                        f = open('/raid/checkpoints/grads/fp16_' + str(epoch) + '_' + n + '.grad', 'wb')
+                        pickle.dump(p.grad, f)
+                    # things to look at:
+                    #print(param.grad.norm())
+                    #print(torch.isnan(param.grad).any())
+                    #print(torch.max(param.grad.abs()))
 
         model.eval()
         total_loss = 0
