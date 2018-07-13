@@ -62,6 +62,7 @@ RUN pip install --upgrade cmake && \
 
 RUN pip install scikit-image tensorflow tensorboard tensorboardX
 
+RUN pip uninstall -y apex || :
 RUN cd /workspace && git clone https://github.com/NVIDIA/apex
 RUN cd /workspace/apex && python3 setup.py install
 

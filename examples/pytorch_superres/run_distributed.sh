@@ -20,11 +20,12 @@ export MINLR=0.0001
 export MAXLR=0.001
 export BATCHSIZE=2
 export FRAMES=3
-export MAX_ITER=1000000
+export MAX_ITER=10000000000
 export AMP="--amp"    # Uncomment to load data and train model in fp16
+export JOB_NAME="fp16"
 
-tensorboard --logdir runs 2> /dev/null &
+tensorboard --logdir /raid/runs 2> /dev/null &
 echo "Tensorboard launched"
 
 # Launch one PyTorch distributed process per GPU
-python -m apex.parallel.multiproc main.py --loader $LOADER --batchsize $BATCHSIZE --frames $FRAMES --root $ROOT $IS_CROPPED --max_iter $MAX_ITER --min_lr $MINLR --max_lr $MAXLR $TIMING --crop_size $CROP_SIZE $AMP
+python -m apex.parallel.multiproc main.py --loader $LOADER --batchsize $BATCHSIZE --frames $FRAMES --root $ROOT $IS_CROPPED --max_iter $MAX_ITER --min_lr $MINLR --max_lr $MAXLR $TIMING --crop_size $CROP_SIZE $AMP --checkpoint_dir '/raid/checkpoints' --job_name $JOB_NAME

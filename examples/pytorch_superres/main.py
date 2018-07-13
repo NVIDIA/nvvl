@@ -53,6 +53,8 @@ parser.add_argument('--max_iter', type=int, default=1000,
                     help='num training iters')
 parser.add_argument('--checkpoint_dir', type=str, default='.',
                     help='where to save checkpoints')
+parser.add_argument('--job_name', type=str, default='default_job',
+                    help='name for checkpoint folder')
 parser.add_argument('--min_lr', type=float, default=0.000001,
                     help='min learning rate for cyclic learning rate')
 parser.add_argument('--max_lr', type=float, default=0.00001,
@@ -73,7 +75,8 @@ def main(args):
 
     if args.rank == 0:
         log.basicConfig(level=log.INFO)
-        writer = SummaryWriter()
+        import random
+        writer = SummaryWriter('/raid/runs/' + str(random.randint(0, 100000)))
         writer.add_text('config', str(args))
     else:
         log.basicConfig(level=log.WARNING)
@@ -97,7 +100,8 @@ def main(args):
     samples_per_epoch = train_batches * args.batchsize
     log.info('Dataloader initialized')
 
-    amp_handle = amp.init(enabled=args.amp)
+    if args.amp:
+        amp_handle = amp.init(enabled=args.amp)
     model = VSRNet(args.frames, args.flownet_path, args.amp)
     model.cuda()
     model.train()
@@ -153,8 +157,41 @@ def main(args):
             if args.amp:
                 with amp_handle.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
+                    # after backward()
+                    if total_iter == 1600:
+                        import pickle
+                        for n, p in model.named_parameters():
+                            f = open('/raid/checkpoints/grads/' + str(epoch) + '_' + n + '.grad', 'wb')
+                            pickle.dump(p.grad, f)
+                    if args.rank == 0 and scaled_loss.float()/loss.float() < 2:
+                        for name, param in model.named_parameters():
+                            if param.grad is None:
+                                continue
+                            if torch.isnan(param.grad).any():
+                                for n, p in model.named_parameters():
+                                    f = open('/raid/checkpoints/grads/' + str(epoch) + '_' + n + '.grad', 'wb')
+                                    pickle.dump(p.grad, f)
+                                print('NAN!!!!!!!!!!!!')
+                                print(name)
+                                import pdb; pdb.set_trace()
+                            # things to look at:
+                            #print(param.grad.norm())
+                            #print(torch.isnan(param.grad).any())
+                            #print(torch.max(param.grad.abs()))
             else:
                 loss.backward()
+                if args.rank == 0:
+                    for name, param in model.named_parameters():
+                        if param.grad is None:
+                            continue
+                        if torch.isnan(param.grad).any():
+                            print('NAN!!!!!!!!!!!!')
+                            print(name)
+                            import pdb; pdb.set_trace()
+                        # things to look at:
+                        #print(param.grad.norm())
+                        #print(torch.isnan(param.grad).any())
+                            #print(torch.max(param.grad.abs()))
 
             optimizer.step()
             scheduler.step()
@@ -170,6 +207,9 @@ def main(args):
                     iter_start = time.perf_counter()
                 writer.add_scalar('learning_rate', scheduler.get_lr()[0], total_iter)
                 writer.add_scalar('train_loss', loss.item(), total_iter)
+                if args.amp:
+                    writer.add_scalar('loss_scale', scaled_loss.float()/loss.float(), total_iter)
+
 
             log.info('Rank %d, Epoch %d, Iteration %d of %d, loss %.5f' %
                     (dist.get_rank(), epoch, i+1, train_batches, loss.item()))
@@ -186,6 +226,8 @@ def main(args):
                 writer.add_scalar('sample_compute_time', compute_timer_avg, total_iter)
             epoch_loss_avg = total_epoch_loss / train_batches
             log.info('Rank %d, epoch %d: %.5f' % (dist.get_rank(), epoch, epoch_loss_avg))
+
+            torch.save(model.state_dict(), os.path.join(args.checkpoint_dir, args.job_name, 'weights_' + str(epoch) + '.pth'))
 
         model.eval()
         total_loss = 0
