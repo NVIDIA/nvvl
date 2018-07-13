@@ -86,8 +86,8 @@ class imageDataset():
                 crop_y = math.floor((self.image_shape[0] - self.frame_size[0]) / 2)
                 self.crop_size = self.frame_size
 
-            image = image[crop_x:crop_x + self.crop_size[0],
-                          crop_y:crop_y + self.crop_size[1],
+            image = image[crop_y:crop_y + self.crop_size[0],
+                          crop_x:crop_x + self.crop_size[1],
                           :]
 
             self.frame_buffer[:, i, :, :] = np.rollaxis(image, 2, 0)
