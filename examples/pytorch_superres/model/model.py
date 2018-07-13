@@ -211,8 +211,8 @@ class VSRNet(nn.Module):
         if not self.training:
             # Following [1], remove 12 pixels around border to prevent
             # convolution edge effects affecting PSNR
-            psnr_metric = psnr(prediction[:, :, :12, -12:].float() * 255,
-                               target[:, :, :12, -12:].float() * 255)
+            psnr_metric = psnr(prediction[:, :, 12:, :-12].float() * 255,
+                    target[:, :, 12:, :-12].float() * 255)
 
         prediction = ycbcr2rgb(torch.cat((prediction * 255, cb[:, :, self.mi, :, :],
                                cr[:, :, self.mi, :, :]), 1)) / 255
