@@ -72,12 +72,42 @@ parser.add_argument('--timing', action='store_true',
 parser.add_argument('--amp', action='store_true',
                     help="Enable amp for automatic mixed precision training")
 
+def backward_inf_nan_hook(model):
+    for name, mod in model.named_modules():
+        #if len(list(mod.children())) == 0:
+        mod.register_backward_hook(hook_gen(name))
+
+def _maybe_iterable(x):
+    try:
+        iter(x)
+        return x
+    except TypeError:
+        return [x]
+
+def hook_gen(name):
+    def hook(module, grad_input, grad_output):
+        for x in _maybe_iterable(grad_output):
+            if x is None:
+                continue
+            if torch.isnan(x).any():
+                print('[OUT]{}({}): NAN'.format(name, type(module)))
+            if (x.float().abs() == float('inf')).any():
+                print('[OUT]{}({}): INF'.format(name, type(module)))
+        for x in _maybe_iterable(grad_input):
+            if x is None:
+                continue
+            if torch.isnan(x).any():
+                print('[IN]{}({}): NAN'.format(name, type(module)))
+            if (x.float().abs() == float('inf')).any():
+                print('[IN]{}({}): INF'.format(name, type(module)))
+    return hook
+
 def main(args):
 
     if args.rank == 0:
         log.basicConfig(level=log.INFO)
         import random
-        writer = SummaryWriter('/raid/runs/' + str(random.randint(0, 100000)))
+        writer = SummaryWriter('/raid/jbarker/runs/' + str(random.randint(0, 100000)))
         writer.add_text('config', str(args))
     else:
         log.basicConfig(level=log.WARNING)
@@ -128,6 +158,7 @@ def main(args):
             sampler.set_epoch(epoch)
 
         model.train()
+        backward_inf_nan_hook(model)
         total_epoch_loss = 0.0
 
         sample_timer = 0.0
@@ -178,6 +209,16 @@ def main(args):
                 writer.add_scalar('train_loss', loss.item(), total_iter)
                 if args.amp:
                     writer.add_scalar('loss_scale', scaled_loss.float()/loss.float(), total_iter)
+                for name, param in model.named_parameters():
+                    if param.grad is None:
+                        continue
+                    if torch.isnan(param.grad).any() == 1 or (param.grad == float('inf')).any():
+                        f = open('/raid/jbarker/checkpoints/grads/fp16_' + str(total_iter) + '_' + name + '.grad', 'wb')
+                        pickle.dump(param.grad, f)
+                    # things to look at:
+                    #print(param.grad.norm())
+                    #print(torch.isnan(param.grad).any())
+                    #print(torch.max(param.grad.abs()))
 
 
             log.info('Rank %d, Epoch %d, Iteration %d of %d, loss %.5f' %
@@ -198,17 +239,6 @@ def main(args):
 
             torch.save(model.state_dict(), os.path.join(args.checkpoint_dir, args.job_name, 'weights_' + str(epoch) + '.pth'))
 
-            if args.rank == 0:
-                for name, param in model.named_parameters():
-                    if param.grad is None:
-                        continue
-                    for n, p in model.named_parameters():
-                        f = open('/raid/checkpoints/grads/fp16_' + str(epoch) + '_' + n + '.grad', 'wb')
-                        pickle.dump(p.grad, f)
-                    # things to look at:
-                    #print(param.grad.norm())
-                    #print(torch.isnan(param.grad).any())
-                    #print(torch.max(param.grad.abs()))
 
         model.eval()
         total_loss = 0

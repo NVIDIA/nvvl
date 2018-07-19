@@ -106,13 +106,9 @@ class VSRNet(nn.Module):
         self.mi = floor(self.frames / 2)
 
         self.pooling = nn.AvgPool2d(4)
-        self.upsample = nn.Upsample(scale_factor=4, mode='bilinear')
+        self.upsample = nn.Upsample(scale_factor=4, mode='bilinear', align_corners=False)
 
-        if fp16:
-            #from FlowNetSD16 import FlowNetSD
-            from FlowNetSD import FlowNetSD
-        else:
-            from FlowNetSD import FlowNetSD
+        from FlowNetSD import FlowNetSD
 
         FlowNetSD_network = FlowNetSD(args=[], batchNorm=False)
         try:
@@ -129,7 +125,7 @@ class VSRNet(nn.Module):
         self.conv1 = conv(self.batchNorm, 1, 64, kernel_size=9)
         self.conv2 = conv(self.batchNorm, 64 * self.frames, 32, kernel_size=5)
         self.conv3 = nn.Conv2d(32, 1, kernel_size=5, stride=1, padding=2, bias=True)
-        self.conv3.weight = torch.nn.init.normal(self.conv3.weight, 0, 0.1)
+        self.conv3.weight = torch.nn.init.normal_(self.conv3.weight, 0, 0.1)
 
     def forward(self, inputs, iteration, writer, im_out=False):
 
@@ -158,12 +154,13 @@ class VSRNet(nn.Module):
         if self.training:
             if self.train_grid is None:
                 self.train_grid = get_grid(batchsize, rows, cols, self.fp16)
+                self.train_grid.requires_grad = False
             grid = self.train_grid
         else:
             if self.val_grid is None:
                 self.val_grid = get_grid(batchsize, rows, cols, self.fp16)
+                self.val_grid.requires_grad = False
             grid = self.val_grid
-        grid.requires_grad = False
 
         downsampled_input = self.pooling(cb[:, :, self.mi, :, :])
         cb[:, :, self.mi, :, :] = self.upsample(downsampled_input)
@@ -185,7 +182,8 @@ class VSRNet(nn.Module):
 
                 to_warp = y[:, :, fr, :, :]
 
-                flow = self.upsample(self.FlowNetSD_network(im_pair)[0]) / 16
+                flow = self.FlowNetSD_network(im_pair)[0]
+                flow = self.upsample(flow) / 16
 
                 flow = torch.cat([flow[:, 0:1, :, :] / ((cols - 1.0) / 2.0),
                                   flow[:, 1:2, :, :] / ((rows - 1.0) / 2.0)], 1)
