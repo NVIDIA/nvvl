@@ -189,7 +189,7 @@ class VideoDataset(torch.utils.data.Dataset):
         self.filenames = filenames
         self.sequence_length = sequence_length
         self.device_id = device_id
-        self.get_label = get_label if get_label is not None else lambda x,y: None
+        self.get_label = get_label if get_label is not None else lambda x,y,z: None
 
         self.processing = processing
         if self.processing is None:
@@ -277,26 +277,31 @@ class VideoDataset(torch.utils.data.Dataset):
 
     def _get_layer_desc(self, desc):
         d = desc.desc()
+        changes = {}
 
         if (desc.random_crop and (self.width > desc.width)):
             d.crop_x = random.randint(0, self.width - desc.width)
         else:
             d.crop_x = 0
+        changes['crop_x'] = d.crop_x
 
         if (desc.random_crop and (self.height > desc.height)):
             d.crop_y = random.randint(0, self.height - desc.height)
         else:
             d.crop_y = 0
+        changes['crop_y'] = d.crop_y
 
         if (desc.random_flip):
             d.horiz_flip = random.random() < 0.5
         else:
             d.horiz_flip = False
+        changes['horiz_flip'] = d.horiz_flip
 
-        return d
+        return d[0], changes
 
     def _start_receive(self, tensor_map, index=0):
         seq = lib.nvvl_create_sequence_device(self.sequence_length, self.device_id)
+        rand_changes = {}
 
         for name, desc in self.processing.items():
             tensor = tensor_map[name]
@@ -316,7 +321,7 @@ class VideoDataset(torch.utils.data.Dataset):
                 desc.stride.c = strides[desc.dimension_order.index('c')]
             except ValueError:
                 raise ValueError("Invalid dimension order")
-            layer.desc = self._get_layer_desc(desc)[0]
+            layer.desc, rand_changes[name] = self._get_layer_desc(desc)
             if desc.index_map_length > 0:
                 layer.index_map = desc.index_map
                 layer.index_map_length = desc.index_map_length
@@ -328,7 +333,7 @@ class VideoDataset(torch.utils.data.Dataset):
         filename, frame = self.seq_info_queue.popleft()
         self.seq_queue.append(seq)
         lib.nvvl_receive_frames(self.loader, seq)
-        return seq, self.get_label(filename, frame)
+        return seq, self.get_label(filename, frame, rand_changes)
 
     def _finish_receive(self, synchronous=False):
         if not self.seq_queue:
