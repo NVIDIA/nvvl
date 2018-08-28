@@ -2,7 +2,7 @@
 
 #include <chrono>
 #include <thread>
-
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <memory>
