@@ -46,7 +46,7 @@ add_library(NVVL::NVVL ALIAS nvvl)
 target_compile_features(nvvl PUBLIC cxx_std_14)
 
 target_compile_options(nvvl PRIVATE
-    $<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-Wall;-Wno-unused-function;-fdiagnostics-color>)
+    $<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-Wall;-Wno-unused-function>)
 
 if (HAVE_AVSTREAM_CODECPAR)
     target_compile_definitions(nvvl PRIVATE HAVE_AVSTREAM_CODECPAR=1)
