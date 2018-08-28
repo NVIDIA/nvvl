@@ -18,7 +18,7 @@ class ProcessDesc(object):
         (Default: "float")
 
     width, height : int, optional
-        width and height to crop frame to, set to 0 for full frame
+        width and height to crop frame to, set to 0 for scaled frame
         size (Default: 0)
 
     scale_width, scale_height : int, optional
@@ -231,10 +231,16 @@ class VideoDataset(torch.utils.data.Dataset):
 
         for name, desc in self.processing.items():
             if desc.width == 0:
-                desc.width = self.width
+                if desc.scale_width == 0:
+                    desc.width = self.width
+                else:
+                    desc.width = desc.scale_width
 
             if desc.height == 0:
-                desc.height = self.height
+                if desc.scale_height == 0:
+                    desc.height = self.height
+                else:
+                    desc.height = desc.scale_height
 
             if desc.count == 0:
                 desc.count = self.sequence_length
