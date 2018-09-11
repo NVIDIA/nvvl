@@ -73,7 +73,7 @@ template<typename T>
 __global__ void process_frame_kernel(
     cudaTextureObject_t luma, cudaTextureObject_t chroma,
     PictureSequence::Layer<T> dst, int index,
-    float fx, float fy) {
+    uint16_t scale_width, float fx, float fy) {
 
     const int dst_x = blockIdx.x * blockDim.x + threadIdx.x;
     const int dst_y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -83,7 +83,7 @@ __global__ void process_frame_kernel(
 
     auto src_x = 0.0f;
     if (dst.desc.horiz_flip) {
-        src_x = (dst.desc.scale_width - dst.desc.crop_x - dst_x) * fx;
+        src_x = (scale_width - dst.desc.crop_x - dst_x) * fx;
     } else {
         src_x = (dst.desc.crop_x + dst_x) * fx;
     }
@@ -141,7 +141,7 @@ void process_frame(
     dim3 grid(divUp(output.desc.width, block.x), divUp(output.desc.height, block.y));
 
     process_frame_kernel<<<grid, block, 0, stream>>>
-            (luma, chroma, output, index, fx, fy);
+            (luma, chroma, output, index, scale_width, fx, fy);
 }
 
 template void process_frame<uint8_t>(
