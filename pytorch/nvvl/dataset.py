@@ -68,7 +68,7 @@ class ProcessDesc(object):
 
 
     def __init__(self, type="float",
-                 width=0, height=0, scale_width=0, scale_height=0,
+                 width=0, height=0, scale_width=0, scale_height=0, scale_method="nearest",
                  normalized=False, random_crop=False, random_flip=True,
                  color_space="RGB", index_map=None, dimension_order="fchw"):
         self.ffi = lib._ffi
@@ -99,6 +99,13 @@ class ProcessDesc(object):
             self.channels = 3
         else:
             raise ValueError("Unknown color space")
+
+        if scale_method.lower() == "nearest":
+            self.color_space = lib.ScaleMethod_Nearest
+        elif scale_method.lower() == "linear":
+            self.color_space = lib.ScaleMethod_Linear
+        else:
+            raise ValueError("Unknown scale method")
 
         if type == "float":
             self.tensor_type = torch.cuda.FloatTensor
@@ -225,7 +232,7 @@ class VideoDataset(torch.utils.data.Dataset):
             self.total_frames += count
             self.start_index.append(self.total_frames) # purposefully off by one for bisect to work
 
-        size = lib.nvvl_video_size(self.loader)
+        size = lib.nvvl_video_size_from_file(str.encode(filenames[0]))
         self.width = size.width
         self.height = size.height
 
@@ -285,14 +292,14 @@ class VideoDataset(torch.utils.data.Dataset):
         d = desc.desc()
         changes = {}
 
-        if (desc.random_crop and (self.width > desc.width)):
-            d.crop_x = random.randint(0, self.width - desc.width)
+        if (desc.random_crop and (desc.scale_width > desc.width)):
+            d.crop_x = random.randint(0, self.scale_width - desc.width)
         else:
             d.crop_x = 0
         changes['crop_x'] = d.crop_x
 
-        if (desc.random_crop and (self.height > desc.height)):
-            d.crop_y = random.randint(0, self.height - desc.height)
+        if (desc.random_crop and (desc.scale_height > desc.height)):
+            d.crop_y = random.randint(0, self.scale_height - desc.height)
         else:
             d.crop_y = 0
         changes['crop_y'] = d.crop_y
@@ -302,6 +309,12 @@ class VideoDataset(torch.utils.data.Dataset):
         else:
             d.horiz_flip = False
         changes['horiz_flip'] = d.horiz_flip
+
+        d.scale_width = desc.scale_width
+        d.scale_height = desc.scale_height
+        d.scale_method = desc.scale_method
+
+        d.normalized = desc.normalized
 
         return d[0], changes
 
