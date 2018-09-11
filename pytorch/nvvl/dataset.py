@@ -69,7 +69,7 @@ class ProcessDesc(object):
 
     def __init__(self, type="float",
                  width=0, height=0, scale_width=0, scale_height=0, scale_method="nearest",
-                 normalized=False, random_crop=False, random_flip=True,
+                 normalized=False, random_crop=False, random_flip=False,
                  color_space="RGB", index_map=None, dimension_order="fchw"):
         self.ffi = lib._ffi
         self._desc = self.ffi.new("struct NVVL_LayerDesc*")
