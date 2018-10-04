@@ -18,7 +18,7 @@ CUStream::CUStream(int device_id, bool default_stream) : created_{false}, stream
             set_device = true;
             cudaSetDevice(device_id);
         }
-        cucall(cudaStreamCreate(&stream_));
+        cucall(cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking));
         created_ = true;
         if (set_device) {
             cucall(cudaSetDevice(orig_device));
