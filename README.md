@@ -10,6 +10,12 @@ horizontally using the GPUs dedicated texture mapping units. Output
 can be in RGB or YCbCr color space, normalized to [0, 1] or [0, 255],
 and in `float`, `half`, or `uint8` tensors.
 
+**Note that, while we hope you find NVVL useful, it is example code
+from a research project performed by a small group of NVIDIA researchers.
+We will do our best to answer questions and fix small bugs as they come
+up, but it is not a supported NVIDIA product and is for the most part
+provided as-is.**
+
 Using compressed video files instead of individual frame image files
 significantly reduces the demands on the storage and I/O systems
 during training. Storing video datasets as video files consumes an
