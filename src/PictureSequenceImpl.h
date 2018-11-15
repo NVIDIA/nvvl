@@ -69,10 +69,6 @@ class CudaEvent {
         return event_;
     }
 
-    void record(cudaStream_t stream) {
-        cucall(cudaEventRecord(event_, stream));
-    }
-
   private:
     bool valid_;
     unsigned int flags_;
@@ -196,7 +192,7 @@ class PictureSequence::impl {
     std::unordered_map<std::string, LayerVariant> layers_;
     std::unordered_map<std::string, Meta> meta_;
 
-    void set_started_(bool started);
+    void set_started_(cudaStream_t stream);
 
     mutable std::mutex started_lock_;
     mutable std::condition_variable started_cv_;

@@ -117,9 +117,10 @@ void PictureSequence::impl::set_count(int count) {
     count_ = count;
 }
 
-void PictureSequence::impl::set_started_(bool started) {
+void PictureSequence::impl::set_started_(cudaStream_t stream) {
+    cucall(cudaEventRecord(event_, stream));
     std::unique_lock<std::mutex> lock{started_lock_};
-    started_ = started;
+    started_ = true;
     lock.unlock();
     started_cv_.notify_one();
 }

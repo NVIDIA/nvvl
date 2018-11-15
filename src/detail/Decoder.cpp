@@ -98,8 +98,7 @@ void Decoder::use_default_stream() {
 
 // This has to be here since Decoder is the only friend of PictureSequence
 void Decoder::record_sequence_event_(PictureSequence& sequence) {
-    sequence.pImpl->event_.record(stream_);
-    sequence.pImpl->set_started_(true);
+    sequence.pImpl->set_started_(stream_);
 }
 
 }
