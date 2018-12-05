@@ -73,6 +73,14 @@ enum NVVL_PicDataType {
     PDT_FLOAT
 };
 
+
+struct NVVL_Strides {
+    size_t x;
+    size_t y;
+    size_t c;
+    size_t n;
+};
+
 /**
  * Description of a layer in a frame sequence.
  */
@@ -175,12 +183,7 @@ struct NVVL_LayerDesc {
      * example, if T is float, a stride of "10" is a stride of
      * 10*sizeof(float) bytes.
      */
-    struct {
-        size_t x;
-        size_t y;
-        size_t c;
-        size_t n;
-    } stride;
+    struct NVVL_Strides stride;
 
 };
 
