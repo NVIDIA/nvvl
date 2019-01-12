@@ -29,8 +29,7 @@ class NvDecoder : public Decoder
     NvDecoder();
 
     NvDecoder(int device_id, Logger& logger,
-              const CodecParameters* codecpar,
-              AVRational time_base);
+              const CodecParameters* codecpar);
 
     bool initialized() const;
 
@@ -99,7 +98,6 @@ class NvDecoder : public Decoder
     CUVideoParser parser_;
     CUVideoDecoder decoder_;
 
-    AVRational time_base_;
     AVRational nv_time_base_ = {1, 10000000};
     AVRational frame_base_;
 
