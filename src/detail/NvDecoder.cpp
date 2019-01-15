@@ -30,11 +30,9 @@ NvDecoder::NvDecoder() {
 
 NvDecoder::NvDecoder(int device_id,
                      Logger& logger,
-                     const CodecParameters* codecpar,
-                     AVRational time_base)
+                     const CodecParameters* codecpar)
     : Decoder{device_id, logger, codecpar},
       device_{}, context_{}, parser_{}, decoder_{logger},
-      time_base_{time_base.num, time_base.den},
       frame_in_use_(32), // 32 is cuvid's max number of decode surfaces
       recv_queue_{}, frame_queue_{}, output_queue_{},
       current_recv_{}, textures_{}, done_{false}
@@ -142,11 +140,7 @@ int NvDecoder::decode_av_packet(AVPacket* avpkt) {
         cupkt.payload = avpkt->data;
         if (avpkt->pts != AV_NOPTS_VALUE) {
             cupkt.flags = CUVID_PKT_TIMESTAMP;
-            if (time_base_.num && time_base_.den) {
-                cupkt.timestamp = av_rescale_q(avpkt->pts, time_base_, nv_time_base_);
-            } else {
-                cupkt.timestamp = avpkt->pts;
-            }
+            cupkt.timestamp = avpkt->pts;
         }
     } else {
         cupkt.flags = CUVID_PKT_ENDOFSTREAM;

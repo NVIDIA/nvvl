@@ -244,8 +244,7 @@ VideoLoader::impl::OpenFile& VideoLoader::impl::get_or_open_file(std::string fil
 
             vid_decoder_ = std::unique_ptr<detail::Decoder>{
                 new detail::NvDecoder(device_id_, log_,
-                                      codecpar(stream),
-                                      stream->time_base)};
+                                      codecpar(stream))};
         } else { // already opened a file
             if (!vid_decoder_) {
                 throw std::logic_error("width is already set but we don't have a vid_decoder_");
@@ -451,6 +450,9 @@ void VideoLoader::impl::read_file() {
 
             stats_.bytes_decoded += pkt->size;
             stats_.packets_decoded++;
+
+            AVRational nv_time_base_ = {1, 10000000};
+            pkt->pts = av_rescale_q(pkt->pts, file.stream_base_, nv_time_base_);
 
             if (file.bsf_ctx_ && pkt->size > 0) {
                 int ret;
