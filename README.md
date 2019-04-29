@@ -1,3 +1,10 @@
+# NVVL is part of DALI!
+[DALI (Nvidia Data Loading Library)](https://developer.nvidia.com/dali) incorporates NVVL functionality and offers much more than that, so it is recommended to switch to it.
+DALI source code is also open source and available on the [GitHub](https://github.com/NVIDIA/DALI).
+Up to date documentation can be found [here](https://docs.nvidia.com/deeplearning/sdk/dali-developer-guide/docs/index.html).
+NVVL project will still be available on the GitHub but it won't be maintained. All issues and request for the future please [submit in the DALI repository](https://github.com/NVIDIA/DALI/issues).
+
+# NVVL
 NVVL (**NV**IDIA **V**ideo **L**oader) is a library to load random
 sequences of video frames from compressed video files to facilitate
 machine learning training. It uses FFmpeg's libraries to parse and
